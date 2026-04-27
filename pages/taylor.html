@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>泰勒逼近演示器 · Taylor Series Visualizer</title>
+    <style>
+        :root {
+            --bg: #080818;
+            --panel-bg: #12122a;
+            --section-bg: #191935;
+            --border: #282850;
+            --text: #c8c8e0;
+            --text-secondary: #7a7aa0;
+            --accent-blue: #4f9fcf;
+            --accent-red: #e05161;
+            --accent-green: #4caf84;
+            --accent-purple: #b87fd9;
+            --accent-orange: #ff8c42;
+            --accent-cyan: #48c9b0;
+            --accent-gold: #ffd700;
+            --accent-pink: #e06c9f;
+            --display-bg: #0d0d20;
+            --btn-bg: #262645;
+            --btn-hover: #353560;
+            --graph-bg: #0d1117;
+            --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* ========== 顶部标题栏 ========== */
+        .header {
+            padding: 8px 18px;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+            flex-shrink: 0;
+        }
+        .header .logo {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--accent-gold);
+            letter-spacing: 1px;
+        }
+        .header .subtitle {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-left: 10px;
+        }
+        .header-links {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .header-links a {
+            color: var(--accent-blue);
+            text-decoration: none;
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .header-links a:hover {
+            color: #fff;
+        }
+
+        /* ========== 主体布局 ========== */
+        .main-layout {
+            display: flex;
+            flex: 1;
+            gap: 10px;
+            padding: 10px;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        /* ========== 左侧画布区 ========== */
+        .graph-panel {
+            flex: 1;
+            background: var(--graph-bg);
+            border-radius: 14px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        #graphCanvas {
+            display: block;
+            width: 100%;
+            flex: 1;
+            cursor: crosshair;
+        }
+
+        /* 画布浮动元素 */
+        .canvas-overlay-top {
+            position: absolute;
+            top: 10px;
+            left: 14px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-family: var(--mono);
+            font-size: 0.78rem;
+            color: var(--accent-gold);
+            pointer-events: none;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .canvas-overlay-expr {
+            position: absolute;
+            top: 10px;
+            right: 14px;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            color: var(--accent-cyan);
+            pointer-events: none;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 350px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .cursor-info {
+            position: absolute;
+            bottom: 10px;
+            left: 14px;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            color: #aaa;
+            pointer-events: none;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            line-height: 1.5;
+        }
+        .error-bar-tooltip {
+            position: absolute;
+            pointer-events: none;
+            font-family: var(--mono);
+            font-size: 0.65rem;
+            color: var(--accent-red);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 2px 6px;
+            border-radius: 3px;
+            white-space: nowrap;
+            display: none;
+        }
+        .hint-bar {
+            position: absolute;
+            bottom: 8px;
+            right: 12px;
+            color: #444;
+            font-size: 0.68rem;
+            pointer-events: none;
+        }
+
+        /* 热力图面板 */
+        .heatmap-panel {
+            height: 70px;
+            background: #080818;
+            border-top: 1px solid var(--border);
+            position: relative;
+            flex-shrink: 0;
+        }
+        #heatmapCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .heatmap-label {
+            position: absolute;
+            top: 3px;
+            left: 10px;
+            font-size: 0.6rem;
+            color: var(--text-secondary);
+            pointer-events: none;
+            font-family: var(--mono);
+        }
+        .heatmap-legend {
+            position: absolute;
+            bottom: 3px;
+            right: 10px;
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            font-size: 0.55rem;
+            color: var(--text-secondary);
+            font-family: var(--mono);
+        }
+        .heatmap-legend .gradient-bar {
+            width: 60px;
+            height: 8px;
+            border-radius: 3px;
+            background: linear-gradient(to right, #0044cc, #4488cc, #ffffff, #ff8844, #cc0000);
+        }
+
+        /* ========== 右侧控制面板 ========== */
+        .control-panel {
+            width: 350px;
+            min-width: 350px;
+            background: var(--panel-bg);
+            border-radius: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 10px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border);
+        }
+        .control-panel::-webkit-scrollbar {
+            width: 5px;
+        }
+        .control-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .control-panel::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 10px;
+        }
+
+        .section {
+            background: var(--section-bg);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            padding: 8px 10px;
+            flex-shrink: 0;
+        }
+        .section-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--accent-orange);
+            margin-bottom: 7px;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* 函数选择 */
+        .func-select-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .func-btn {
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid var(--border);
+            background: var(--btn-bg);
+            color: var(--text);
+            cursor: pointer;
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            transition: all 0.15s;
+        }
+        .func-btn:hover {
+            background: var(--btn-hover);
+            border-color: var(--accent-blue);
+        }
+        .func-btn.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: #fff;
+            font-weight: 700;
+        }
+
+        /* 展开点与阶数 */
+        .param-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .param-row label {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            min-width: 50px;
+        }
+        .param-row input {
+            flex: 1;
+            background: var(--display-bg);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 5px 8px;
+            color: #fff;
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            outline: none;
+        }
+        .param-row input:focus {
+            border-color: var(--accent-blue);
+        }
+        .slider-group input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent-gold);
+            cursor: pointer;
+            margin: 4px 0;
+        }
+        .slider-buttons {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+        .slider-buttons button {
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background: var(--btn-bg);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.68rem;
+        }
+        .slider-buttons button:hover {
+            background: var(--btn-hover);
+        }
+        .slider-buttons .n-display {
+            font-family: var(--mono);
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--accent-gold);
+            min-width: 30px;
+            text-align: center;
+        }
+
+        /* 模式按钮 */
+        .mode-btn-group {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        .mode-btn {
+            padding: 6px 10px;
+            border-radius: 5px;
+            border: 1px solid var(--border);
+            background: var(--btn-bg);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.7rem;
+            transition: all 0.15s;
+        }
+        .mode-btn:hover {
+            background: var(--btn-hover);
+        }
+        .mode-btn.active {
+            background: var(--accent-purple);
+            border-color: var(--accent-purple);
+            color: #fff;
+            font-weight: 700;
+        }
+
+        /* 仪表盘 */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        .dash-item {
+            background: var(--display-bg);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            padding: 8px;
+            text-align: center;
+        }
+        .dash-item.full {
+            grid-column: 1 / -1;
+        }
+        .dash-label {
+            font-size: 0.6rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 3px;
+        }
+        .dash-value {
+            font-family: var(--mono);
+            font-size: 1rem;
+            font-weight: 700;
+            color: #fff;
+            transition: all 0.2s ease;
+        }
+        .dash-gold {
+            color: var(--accent-gold);
+        }
+        .dash-green {
+            color: var(--accent-green);
+        }
+        .dash-red {
+            color: var(--accent-red);
+        }
+
+        @keyframes pulse {
+            0%,
+            100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.06);
+            }
+        }
+        .pulse {
+            animation: pulse 0.3s ease-in-out;
+        }
+
+        /* 操作按钮 */
+        .action-row {
+            display: flex;
+            gap: 6px;
+        }
+        .action-row button {
+            flex: 1;
+            padding: 9px;
+            border-radius: 6px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 0.72rem;
+            transition: all 0.15s;
+        }
+        .btn-export {
+            background: var(--accent-orange);
+            color: #000;
+        }
+        .btn-latex {
+            background: var(--accent-purple);
+            color: #fff;
+        }
+        .btn-animate {
+            background: var(--accent-green);
+            color: #000;
+        }
+        .btn-expand {
+            background: var(--accent-cyan);
+            color: #000;
+        }
+        .action-row button:hover {
+            filter: brightness(1.2);
+        }
+
+        /* 泰勒展开式显示 */
+        .taylor-expr-display {
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            color: var(--accent-cyan);
+            background: var(--display-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 10px;
+            max-height: 80px;
+            overflow-y: auto;
+            word-break: break-all;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        /* 复选框 */
+        .checkbox-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+        .checkbox-row input {
+            accent-color: var(--accent-blue);
+        }
+
+        @media (max-width: 900px) {
+            .main-layout {
+                flex-direction: column;
+            }
+            .control-panel {
+                width: 100%;
+                min-width: unset;
+                max-height: 38vh;
+            }
+            .graph-panel {
+                min-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 顶部标题栏 -->
+<div class="header">
+    <div>
+        <span class="logo">📈 泰勒逼近演示器</span>
+        <span class="subtitle">Taylor Series Visualizer · 逐阶逼近 · 收敛分析</span>
+    </div>
+    <div class="header-links">
+        <a onclick="resetView()">🔄 重置视口</a>
+        <a onclick="expandView()">🔍 拉远视角</a>
+        <a onclick="exportImage()">📸 导出图片</a>
+        <a onclick="copyLatex()">📋 复制LaTeX</a>
+        <a onclick="showHelp()">❓ 帮助</a>
+    </div>
+</div>
+
+<!-- 主体 -->
+<div class="main-layout">
+
+    <!-- ========== 左侧：图形区域 ========== -->
+    <div class="graph-panel" id="graphContainer">
+        <canvas id="graphCanvas"></canvas>
+        <div class="canvas-overlay-top" id="nOverlay">n = 5</div>
+        <div class="canvas-overlay-expr" id="exprOverlay">T₅(x) = x − x³/6 + x⁵/120</div>
+        <div class="cursor-info" id="cursorInfo">
+            f(x) = —<br>Tₙ(x) = —<br>|E| = —
+        </div>
+        <div class="error-bar-tooltip" id="errorTooltip"></div>
+        <div class="hint-bar">🖱️ 移动鼠标查看误差 | 滚轮缩放 | 右键平移 | 拖拽🔴展开点</div>
+
+        <!-- 热力图 -->
+        <div class="heatmap-panel" id="heatmapPanel">
+            <canvas id="heatmapCanvas"></canvas>
+            <div class="heatmap-label">误差热力图 |E(x)| = |f(x) − Tₙ(x)|（对数尺度）</div>
+            <div class="heatmap-legend">
+                <span>低误差</span>
+                <div class="gradient-bar"></div>
+                <span>高误差</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 右侧：控制面板 ========== -->
+    <div class="control-panel">
+
+        <!-- 📐 函数选择 -->
+        <div class="section">
+            <div class="section-title">📐 函数选择</div>
+            <div class="func-select-group" id="funcGroup">
+                <button class="func-btn active" data-func="sin(x)" data-a="0" data-symbolic="sin">sin(x)</button>
+                <button class="func-btn" data-func="cos(x)" data-a="0" data-symbolic="cos">cos(x)</button>
+                <button class="func-btn" data-func="exp(x)" data-a="0" data-symbolic="exp">eˣ</button>
+                <button class="func-btn" data-func="ln(1+x)" data-a="0" data-symbolic="ln1p">ln(1+x)</button>
+                <button class="func-btn" data-func="1/(1-x)" data-a="0" data-symbolic="geo">1/(1−x)</button>
+                <button class="func-btn" data-func="atan(x)" data-a="0" data-symbolic="atan">arctan(x)</button>
+            </div>
+        </div>
+
+        <!-- 📏 展开点与阶数 -->
+        <div class="section">
+            <div class="section-title">📏 展开点与阶数</div>
+            <div class="param-row">
+                <label>展开点 a</label>
+                <input type="number" id="inputA" value="0" step="0.1" onchange="onParamChange()">
+            </div>
+            <div class="param-row">
+                <label>阶数 n</label>
+                <span class="n-display" id="nDisplay">5</span>
+            </div>
+            <div class="slider-group">
+                <input type="range" id="nSlider" min="0" max="15" value="5" step="1" oninput="onSliderChange()">
+                <div class="slider-buttons">
+                    <button onclick="adjustN(-1)">−1</button>
+                    <button onclick="adjustN(1)">+1</button>
+                    <button onclick="toggleAnimation()" id="btnAnimate" style="margin-left:8px;">▶ 逐阶演示</button>
+                </div>
+            </div>
+            <div class="mode-btn-group" style="margin-top:5px;">
+                <button class="mode-btn active" data-stepping="all" onclick="setStepping('all')">全部阶数</button>
+                <button class="mode-btn" data-stepping="odd" onclick="setStepping('odd')">仅奇次</button>
+                <button class="mode-btn" data-stepping="even" onclick="setStepping('even')">仅偶次</button>
+            </div>
+        </div>
+
+        <!-- ⚡ 显示选项 -->
+        <div class="section">
+            <div class="section-title">⚡ 显示选项</div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="chkHistory" onchange="onOptionChange()">
+                <label>📸 历史快照（保留 n=1,3,5,7）</label>
+            </div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="chkHeatmap" checked onchange="onOptionChange()">
+                <label>🔥 显示误差热力图</label>
+            </div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="chkRadius" onchange="onOptionChange()">
+                <label>🎯 标记收敛半径</label>
+            </div>
+            <div class="checkbox-row">
+                <input type="checkbox" id="chkErrorBar" checked onchange="onOptionChange()">
+                <label>📏 鼠标误差棒</label>
+            </div>
+        </div>
+
+        <!-- 📊 实时仪表盘 -->
+        <div class="section">
+            <div class="section-title">📊 实时数据</div>
+            <div class="dashboard">
+                <div class="dash-item">
+                    <div class="dash-label">当前阶数</div>
+                    <div class="dash-value dash-gold" id="dashN">5</div>
+                </div>
+                <div class="dash-item">
+                    <div class="dash-label">绝对误差 |E|</div>
+                    <div class="dash-value dash-green" id="dashError">—</div>
+                </div>
+                <div class="dash-item full">
+                    <div class="dash-label">最大误差（可视范围）</div>
+                    <div class="dash-value dash-red" id="dashMaxError">—</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 📐 泰勒展开式 -->
+        <div class="section">
+            <div class="section-title">📐 泰勒展开式</div>
+            <div class="taylor-expr-display" id="taylorExprDisplay">T₅(x) = x − x³/6 + x⁵/120</div>
+        </div>
+
+        <!-- ⚙️ 操作 -->
+        <div class="section">
+            <div class="section-title">⚙️ 操作</div>
+            <div class="action-row">
+                <button class="btn-export" onclick="exportImage()">📸 导出</button>
+                <button class="btn-latex" onclick="copyLatex()">📋 LaTeX</button>
+                <button class="btn-expand" onclick="expandView()">🔍 拉远</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ==================== DOM 引用 ====================
+        const graphCanvas = document.getElementById('graphCanvas');
+        const graphCtx = graphCanvas.getContext('2d');
+        const heatmapCanvas = document.getElementById('heatmapCanvas');
+        const heatmapCtx = heatmapCanvas.getContext('2d');
+        const graphContainer = document.getElementById('graphContainer');
+        const heatmapPanel = document.getElementById('heatmapPanel');
+
+        const nSlider = document.getElementById('nSlider');
+        const nDisplay = document.getElementById('nDisplay');
+        const nOverlay = document.getElementById('nOverlay');
+        const exprOverlay = document.getElementById('exprOverlay');
+        const cursorInfo = document.getElementById('cursorInfo');
+        const errorTooltip = document.getElementById('errorTooltip');
+        const dashN = document.getElementById('dashN');
+        const dashError = document.getElementById('dashError');
+        const dashMaxError = document.getElementById('dashMaxError');
+        const taylorExprDisplay = document.getElementById('taylorExprDisplay');
+        const inputA = document.getElementById('inputA');
+        const chkHistory = document.getElementById('chkHistory');
+        const chkHeatmap = document.getElementById('chkHeatmap');
+        const chkRadius = document.getElementById('chkRadius');
+        const chkErrorBar = document.getElementById('chkErrorBar');
+        const btnAnimate = document.getElementById('btnAnimate');
+
+        // ==================== 状态变量 ====================
+        let currentFuncExpr = 'sin(x)';
+        let currentFunc = Math.sin;
+
+        // ==================== 读取URL参数中的函数 ====================
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const passedFunc = urlParams.get('func');
+            if (passedFunc) {
+                currentFuncExpr = decodeURIComponent(passedFunc);
+                currentFunc = compileExpr(currentFuncExpr);
+                // 更新函数选择按钮
+                document.querySelectorAll('.func-btn').forEach(b => b.classList.remove('active'));
+                // 延迟重绘
+                setTimeout(() => {
+                    draw();
+                }, 300);
+            }
+        })();
+        let symbolicType = 'sin'; // 'sin'|'cos'|'exp'|'ln1p'|'geo'|'atan'|'custom'
+        let expansionPoint = 0;
+        let maxN = 5;
+        let stepping = 'all'; // 'all'|'odd'|'even'
+        let isAnimating = false;
+        let animationId = null;
+        let mouseX = null;
+        let mouseY = null;
+        let mouseCanvasX = null;
+
+        // 视口
+        let xMin = -6,
+            xMax = 6,
+            yMin = -4,
+            yMax = 4;
+
+        // 可拖拽展开点
+        let draggingExpansionPoint = false;
+        let panning = false;
+        let panStart = null;
+
+        // ==================== 表达式编译 ====================
+        function compileExpr(expr) {
+            let processed = expr
+                .replace(/\^/g, '**')
+                .replace(/pi/g, '(Math.PI)')
+                .replace(/(?<![a-zA-Z])e(?![a-zA-Z+\-^*\/()])/g, '(Math.E)')
+                .replace(/abs/g, 'Math.abs')
+                .replace(/sqrt/g, 'Math.sqrt')
+                .replace(/cbrt/g, 'Math.cbrt')
+                .replace(/sin/g, 'Math.sin')
+                .replace(/cos/g, 'Math.cos')
+                .replace(/tan/g, 'Math.tan')
+                .replace(/atan/g, 'Math.atan')
+                .replace(/exp/g, 'Math.exp')
+                .replace(/ln/g, 'Math.log')
+                .replace(/log/g, 'Math.log10')
+                .replace(/floor/g, 'Math.floor')
+                .replace(/ceil/g, 'Math.ceil');
+            try {
+                return new Function('x', `try { return (${processed}); } catch(e) { return NaN; }`);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // ==================== 阶乘 ====================
+        const factorialCache = [1];
+        function factorial(n) {
+            if (n < factorialCache.length) return factorialCache[n];
+            for (let i = factorialCache.length; i <= n; i++) {
+                factorialCache.push(factorialCache[i - 1] * i);
+            }
+            return factorialCache[n];
+        }
+
+        // ==================== 符号导数（针对预设函数） ====================
+        function getDerivativeValue(symbolic, n, x) {
+            switch (symbolic) {
+                case 'sin':
+                    const remSin = n % 4;
+                    if (remSin === 0) return Math.sin(x);
+                    if (remSin === 1) return Math.cos(x);
+                    if (remSin === 2) return -Math.sin(x);
+                    return -Math.cos(x);
+                case 'cos':
+                    const remCos = n % 4;
+                    if (remCos === 0) return Math.cos(x);
+                    if (remCos === 1) return -Math.sin(x);
+                    if (remCos === 2) return -Math.cos(x);
+                    return Math.sin(x);
+                case 'exp':
+                    return Math.exp(x);
+                case 'ln1p':
+                    // f(x)=ln(1+x), f^(n)(x) = (-1)^(n-1) * (n-1)! / (1+x)^n  (n>=1)
+                    if (n === 0) return Math.log(1 + x);
+                    return (Math.pow(-1, n - 1) * factorial(n - 1)) / Math.pow(1 + x, n);
+                case 'geo':
+                    // f(x)=1/(1-x), f^(n)(x) = n! / (1-x)^(n+1)
+                    return factorial(n) / Math.pow(1 - x, n + 1);
+                case 'atan':
+                    // arctan的导数有规律，使用数值微分
+                    const h = 1e-7;
+                    if (n === 0) return Math.atan(x);
+                    // 递归数值微分不稳定，使用解析公式近似
+                    // f^(n)(arctan) at 0: 0 如果 n 偶数，(-1)^((n-1)/2)*(n-1)! 如果 n 奇数
+                    if (Math.abs(x) < 1e-9) {
+                        if (n % 2 === 0) return 0;
+                        const k = (n - 1) / 2;
+                        return Math.pow(-1, k) * factorial(n - 1);
+                    }
+                    // 一般情况用数值微分
+                    return numericalDerivativeN(symbolic, n, x);
+                default:
+                    return numericalDerivativeN(symbolic, n, x);
+            }
+        }
+
+        function numericalDerivativeN(symbolic, order, x) {
+            const h = 1e-6;
+            if (order === 0) return currentFunc(x);
+            // 中心差分
+            return (getDerivativeValue(symbolic, order - 1, x + h) -
+                getDerivativeValue(symbolic, order - 1, x - h)) / (2 * h);
+        }
+
+        // ==================== 泰勒系数计算 ====================
+        function computeTaylorCoefficients(symbolic, a, maxOrder) {
+            const coeffs = [];
+            for (let n = 0; n <= maxOrder; n++) {
+                const derivAtA = getDerivativeValue(symbolic, n, a);
+                coeffs.push(derivAtA / factorial(n));
+            }
+            return coeffs;
+        }
+
+        // 霍纳法求多项式值
+        function hornerEvaluate(coeffs, x, a) {
+            let result = 0;
+            for (let i = coeffs.length - 1; i >= 0; i--) {
+                result = result * (x - a) + coeffs[i];
+            }
+            return result;
+        }
+
+        // ==================== 生成泰勒表达式字符串 ====================
+        function generateTaylorExpression(coeffs, a, n) {
+            if (n < 0) return 'T₀(x) = 0';
+            let expr = `T${n}(x) = `;
+            let hasTerm = false;
+            for (let k = 0; k <= n; k++) {
+                const c = coeffs[k];
+                // 根据stepping过滤
+                if (stepping === 'odd' && k % 2 === 0) continue;
+                if (stepping === 'even' && k % 2 === 1) continue;
+                if (Math.abs(c) < 1e-15) continue;
+
+                // 格式化系数
+                let term = '';
+                const absC = Math.abs(c);
+                const isFrac = Math.abs(absC - Math.round(absC)) > 1e-10 && absC < 1;
+
+                if (k === 0) {
+                    term = c.toFixed(4);
+                } else {
+                    // 系数部分
+                    let coeffStr = '';
+                    if (Math.abs(absC - 1) < 1e-10) {
+                        coeffStr = '';
+                    } else if (isFrac) {
+                        // 尝试显示为分数
+                        const frac = toFraction(c);
+                        coeffStr = frac;
+                    } else {
+                        coeffStr = parseFloat(c.toFixed(6)).toString();
+                    }
+                    // 变量部分
+                    const aStr = Math.abs(a) < 1e-10 ? '' : `(x${a >= 0 ? '-' : '+'}${Math.abs(a).toFixed(2)})`;
+                    const varPart = aStr || 'x';
+                    const powPart = k === 1 ? varPart : `${varPart}^${k}`;
+                    term = coeffStr === '' ? powPart : `${coeffStr}·${powPart}`;
+                }
+
+                if (!hasTerm) {
+                    expr += (c < 0 ? '−' : '') + term;
+                } else {
+                    expr += (c < 0 ? ' − ' : ' + ') + term;
+                }
+                hasTerm = true;
+            }
+            if (!hasTerm) expr += '0';
+            return expr;
+        }
+
+        function toFraction(c) {
+            const absC = Math.abs(c);
+            for (let denom = 2; denom <= 1000; denom++) {
+                const num = Math.round(absC * denom);
+                if (Math.abs(num / denom - absC) < 1e-10) {
+                    return (c < 0 ? '−' : '') + `${num}/${denom}`;
+                }
+            }
+            return parseFloat(c.toFixed(6)).toString();
+        }
+
+        // ==================== 画布绘制 ====================
+        function getGraphRect() {
+            const rect = graphCanvas.getBoundingClientRect();
+            const heatH = heatmapPanel.getBoundingClientRect().height;
+            return {
+                W: rect.width,
+                H: rect.height - heatH,
+                fullH: rect.height,
+                dpr: window.devicePixelRatio || 1
+            };
+        }
+
+        function toCanvasX(mathX, W) {
+            return ((mathX - xMin) / (xMax - xMin)) * W;
+        }
+
+        function toCanvasY(mathY, H) {
+            return H - ((mathY - yMin) / (yMax - yMin)) * H;
+        }
+
+        function toMathX(canvasX, W) {
+            return xMin + (canvasX / W) * (xMax - xMin);
+        }
+
+        function toMathY(canvasY, H) {
+            return yMax - (canvasY / H) * (yMax - yMin);
+        }
+
+        function draw() {
+            const { W, H, dpr } = getGraphRect();
+            const graphH = H;
+
+            // 高清适配
+            const neededW = W * dpr;
+            const neededH = graphH * dpr;
+            if (graphCanvas.width !== neededW || graphCanvas.height !== neededH) {
+                graphCanvas.width = neededW;
+                graphCanvas.height = neededH;
+                graphCanvas.style.width = W + 'px';
+                graphCanvas.style.height = graphH + 'px';
+                graphCtx.setTransform(1, 0, 0, 1, 0, 0);
+                graphCtx.scale(dpr, dpr);
+            }
+
+            const ctx = graphCtx;
+            ctx.clearRect(0, 0, W, graphH);
+            ctx.fillStyle = '#0d1117';
+            ctx.fillRect(0, 0, W, graphH);
+
+            // 网格
+            ctx.strokeStyle = '#1a1a30';
+            ctx.lineWidth = 0.5;
+            const gridStepX = Math.pow(10, Math.floor(Math.log10(xMax - xMin))) / 5;
+            const gridStepY = Math.pow(10, Math.floor(Math.log10(yMax - yMin))) / 5;
+            for (let x = Math.floor(xMin / gridStepX) * gridStepX; x <= xMax; x += gridStepX) {
+                ctx.beginPath();
+                ctx.moveTo(toCanvasX(x, W), 0);
+                ctx.lineTo(toCanvasX(x, W), graphH);
+                ctx.stroke();
+            }
+            for (let y = Math.floor(yMin / gridStepY) * gridStepY; y <= yMax; y += gridStepY) {
+                ctx.beginPath();
+                ctx.moveTo(0, toCanvasY(y, graphH));
+                ctx.lineTo(W, toCanvasY(y, graphH));
+                ctx.stroke();
+            }
+
+            // 坐标轴
+            const axisY = toCanvasY(0, graphH);
+            const axisX = toCanvasX(0, W);
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(0, axisY);
+            ctx.lineTo(W, axisY);
+            ctx.moveTo(axisX, 0);
+            ctx.lineTo(axisX, graphH);
+            ctx.stroke();
+            ctx.fillStyle = '#aaa';
+            ctx.font = '11px "Segoe UI", sans-serif';
+            ctx.fillText('x', W - 16, axisY - 8);
+            ctx.fillText('y', axisX + 10, 14);
+
+            // 收敛半径
+            const alphaRadius = chkRadius.checked;
+            if (alphaRadius && (symbolicType === 'ln1p' || symbolicType === 'geo')) {
+                const R = symbolicType === 'ln1p' ? 1 : 1;
+                const cxR = toCanvasX(expansionPoint + R, W);
+                const cxL = toCanvasX(expansionPoint - R, W);
+                ctx.strokeStyle = 'rgba(255,80,80,0.5)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([10, 5]);
+                ctx.beginPath();
+                ctx.moveTo(cxR, 0);
+                ctx.lineTo(cxR, graphH);
+                ctx.moveTo(cxL, 0);
+                ctx.lineTo(cxL, graphH);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = 'rgba(255,80,80,0.7)';
+                ctx.font = '10px "Segoe UI", sans-serif';
+                ctx.fillText(`R=1`, cxR + 3, graphH - 8);
+            }
+
+            // 系数
+            const maxOrder = Math.min(maxN, 15);
+            const coeffs = computeTaylorCoefficients(symbolicType, expansionPoint, maxOrder);
+
+            // 历史快照
+            const showHistory = chkHistory.checked;
+            const historyColors = [
+                'rgba(100,150,255,0.4)', // n=1
+                'rgba(120,200,180,0.45)', // n=3
+                'rgba(200,160,80,0.5)', // n=5
+                'rgba(255,140,60,0.55)', // n=7
+            ];
+            if (showHistory) {
+                const historyNs = [1, 3, 5, 7].filter(n => n <= maxOrder);
+                historyNs.forEach((hN, idx) => {
+                    const histCoeffs = computeTaylorCoefficients(symbolicType, expansionPoint, hN);
+                    drawPolynomialCurve(ctx, histCoeffs, expansionPoint, W, graphH,
+                        historyColors[idx], 1.5, [2, 4]);
+                    // 标注
+                    const labelX = toCanvasX(expansionPoint + 0.8, W);
+                    const labelY = toCanvasY(hornerEvaluate(histCoeffs, expansionPoint + 0.8,
+                        expansionPoint), graphH);
+                    ctx.fillStyle = historyColors[idx].replace('0.4', '0.9');
+                    ctx.font = 'bold 10px var(--mono)';
+                    ctx.fillText(`n=${hN}`, labelX, labelY - 6);
+                });
+            }
+
+            // 泰勒多项式（金色）
+            const effectiveN = getEffectiveN(maxOrder);
+            const goldAlpha = 0.55 + (effectiveN / 15) * 0.45;
+            const goldR = Math.round(255 * (0.6 + effectiveN / 15 * 0.4));
+            const goldG = Math.round(215 * (0.5 + effectiveN / 15 * 0.5));
+            const goldB = Math.round(0);
+            const goldColor = `rgba(${goldR},${goldG},${goldB},${goldAlpha})`;
+            const goldWidth = 1.5 + (effectiveN / 15) * 2.5;
+            const goldDash = effectiveN >= 10 ? [] : [6, 3];
+            drawPolynomialCurve(ctx, coeffs, expansionPoint, W, graphH, goldColor, goldWidth, goldDash);
+
+            // 原函数（白色发光）
+            ctx.save();
+            ctx.shadowColor = 'rgba(255,255,255,0.4)';
+            ctx.shadowBlur = 6;
+            ctx.beginPath();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3.5;
+            ctx.lineJoin = 'round';
+            let first = true;
+            for (let px = 0; px <= W; px += 1.5) {
+                const mathX = toMathX(px, W);
+                const mathY = currentFunc(mathX);
+                if (isNaN(mathY) || !isFinite(mathY) || Math.abs(mathY) > 1e6) { first = true; continue; }
+                const cy = toCanvasY(mathY, graphH);
+                if (cy < -500 || cy > graphH + 500) { first = true; continue; }
+                if (first) { ctx.moveTo(px, cy);
+                    first = false; } else { ctx.lineTo(px, cy); }
+            }
+            ctx.stroke();
+            ctx.restore();
+
+            // 展开点标记
+            const epCanvasX = toCanvasX(expansionPoint, W);
+            const epCanvasY = toCanvasY(currentFunc(expansionPoint), graphH);
+            ctx.beginPath();
+            ctx.fillStyle = '#ff3333';
+            ctx.shadowColor = '#ff3333';
+            ctx.shadowBlur = 12;
+            ctx.arc(epCanvasX, epCanvasY, 7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            // 脉冲光晕
+            ctx.beginPath();
+            ctx.fillStyle = 'rgba(255,50,50,0.25)';
+            ctx.arc(epCanvasX, epCanvasY, 14, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 鼠标十字线与误差棒
+            if (mouseCanvasX !== null && mouseY !== null && graphH > 0) {
+                const mx = mouseCanvasX;
+                const mathX = toMathX(mx, W);
+                const fVal = currentFunc(mathX);
+                const tVal = hornerEvaluate(coeffs, mathX, expansionPoint);
+                if (isFinite(fVal) && isFinite(tVal)) {
+                    const fCanvasY = toCanvasY(fVal, graphH);
+                    const tCanvasY = toCanvasY(tVal, graphH);
+                    // 十字线
+                    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([4, 6]);
+                    ctx.beginPath();
+                    ctx.moveTo(mx, 0);
+                    ctx.lineTo(mx, graphH);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    // 误差棒
+                    if (chkErrorBar.checked) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = '#e05161';
+                        ctx.lineWidth = 2;
+                        ctx.moveTo(mx + 8, Math.min(fCanvasY, tCanvasY));
+                        ctx.lineTo(mx + 8, Math.max(fCanvasY, tCanvasY));
+                        ctx.stroke();
+                        ctx.fillStyle = '#fff';
+                        ctx.beginPath();
+                        ctx.arc(mx + 8, Math.min(fCanvasY, tCanvasY), 3, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.beginPath();
+                        ctx.arc(mx + 8, Math.max(fCanvasY, tCanvasY), 3, 0, Math.PI * 2);
+                        ctx.fill();
+                        // 工具提示
+                        const error = Math.abs(fVal - tVal);
+                        errorTooltip.style.display = 'block';
+                        errorTooltip.style.left = (mx + 16) + 'px';
+                        errorTooltip.style.top = (Math.min(fCanvasY, tCanvasY) - 22) + 'px';
+                        errorTooltip.textContent = `|E|= ${error.toExponential(3)}`;
+                    }
+                    // 光标信息
+                    cursorInfo.innerHTML =
+                        `f(x) = ${fVal.toFixed(6)}<br>Tₙ(x) = ${tVal.toFixed(6)}<br>|E| = ${Math.abs(fVal-tVal).toExponential(3)}`;
+                }
+            }
+
+            // 更新仪表盘
+            updateDashboard(coeffs);
+            updateExpressionDisplay(coeffs);
+            nOverlay.textContent = `n = ${getEffectiveN(maxOrder)}`;
+            dashN.textContent = getEffectiveN(maxOrder);
+
+            // 绘制热力图
+            if (chkHeatmap.checked) {
+                drawHeatmap(coeffs, W);
+                heatmapPanel.style.display = 'block';
+            } else {
+                heatmapPanel.style.display = 'none';
+                heatmapCanvas.style.display = 'none';
+            }
+            if (chkHeatmap.checked) {
+                heatmapCanvas.style.display = 'block';
+            }
+        }
+
+        function drawPolynomialCurve(ctx, coeffs, a, W, graphH, color, width, dash) {
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.lineJoin = 'round';
+            if (dash && dash.length > 0) ctx.setLineDash(dash);
+            let first = true;
+            for (let px = 0; px <= W; px += 1.5) {
+                const mathX = toMathX(px, W);
+                const mathY = hornerEvaluate(coeffs, mathX, a);
+                if (isNaN(mathY) || !isFinite(mathY) || Math.abs(mathY) > 1e6) { first = true; continue; }
+                const cy = toCanvasY(mathY, graphH);
+                if (cy < -500 || cy > graphH + 500) { first = true; continue; }
+                if (first) { ctx.moveTo(px, cy);
+                    first = false; } else { ctx.lineTo(px, cy); }
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function getEffectiveN(maxOrder) {
+            if (stepping === 'all') return maxOrder;
+            if (stepping === 'odd') return maxOrder % 2 === 0 ? Math.max(0, maxOrder - 1) : maxOrder;
+            if (stepping === 'even') return maxOrder % 2 === 1 ? Math.max(0, maxOrder - 1) : maxOrder;
+            return maxOrder;
+        }
+
+        // ==================== 热力图 ====================
+        function drawHeatmap(coeffs, graphW) {
+            const rect = heatmapCanvas.getBoundingClientRect();
+            const W = rect.width;
+            const H = rect.height;
+            const dpr = window.devicePixelRatio || 1;
+
+            if (heatmapCanvas.width !== W * dpr || heatmapCanvas.height !== H * dpr) {
+                heatmapCanvas.width = W * dpr;
+                heatmapCanvas.height = H * dpr;
+                heatmapCanvas.style.width = W + 'px';
+                heatmapCanvas.style.height = H + 'px';
+                heatmapCtx.setTransform(1, 0, 0, 1, 0, 0);
+                heatmapCtx.scale(dpr, dpr);
+            }
+
+            const ctx = heatmapCtx;
+            const imgData = ctx.createImageData(W, H);
+            for (let px = 0; px < W; px++) {
+                const mathX = toMathX(px * (graphW / W), graphW);
+                const fVal = currentFunc(mathX);
+                const tVal = hornerEvaluate(coeffs, mathX, expansionPoint);
+                let error = Math.abs(fVal - tVal);
+                if (!isFinite(error)) error = 1e6;
+                // 对数尺度映射颜色
+                const logError = Math.log10(Math.max(error, 1e-15));
+                // 映射: -15→深蓝, -5→浅蓝, 0→白, 3→红, 6→深红
+                const t = (logError + 15) / 21; // 归一化到 0~1
+                const clampedT = Math.max(0, Math.min(1, t));
+                const [r, g, b] = heatmapColor(clampedT);
+                for (let py = 0; py < H; py++) {
+                    const idx = (py * W + px) * 4;
+                    imgData.data[idx] = r;
+                    imgData.data[idx + 1] = g;
+                    imgData.data[idx + 2] = b;
+                    imgData.data[idx + 3] = 255;
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
+
+        function heatmapColor(t) {
+            // 蓝(0,0.3,1) → 浅蓝(0.4,0.7,1) → 白(1,1,1) → 橙(1,0.6,0.2) → 红(1,0,0)
+            if (t < 0.25) {
+                const s = t / 0.25;
+                return [Math.round(0 + 102 * s), Math.round(77 + 98 * s), Math.round(255)];
+            } else if (t < 0.5) {
+                const s = (t - 0.25) / 0.25;
+                return [Math.round(102 + 153 * s), Math.round(175 + 80 * s), Math.round(255 - 255 * s)];
+            } else if (t < 0.75) {
+                const s = (t - 0.5) / 0.25;
+                return [255, Math.round(255 - 102 * s), Math.round(0)];
+            } else {
+                const s = (t - 0.75) / 0.25;
+                return [255, Math.round(153 - 153 * s), 0];
+            }
+        }
+
+        // ==================== 仪表盘更新 ====================
+        function updateDashboard(coeffs) {
+            let maxError = 0;
+            const steps = 500;
+            for (let i = 0; i <= steps; i++) {
+                const x = xMin + (xMax - xMin) * i / steps;
+                const fVal = currentFunc(x);
+                const tVal = hornerEvaluate(coeffs, x, expansionPoint);
+                if (isFinite(fVal) && isFinite(tVal)) {
+                    maxError = Math.max(maxError, Math.abs(fVal - tVal));
+                }
+            }
+            dashMaxError.textContent = maxError.toExponential(3);
+            if (maxError > 0.1) dashMaxError.className = 'dash-value dash-red';
+            else if (maxError < 0.001) dashMaxError.className = 'dash-value dash-green';
+            else dashMaxError.className = 'dash-value';
+
+            // 鼠标处误差
+            if (mouseCanvasX !== null) {
+                const { W } = getGraphRect();
+                const mathX = toMathX(mouseCanvasX, W);
+                const fVal = currentFunc(mathX);
+                const tVal = hornerEvaluate(coeffs, mathX, expansionPoint);
+                if (isFinite(fVal) && isFinite(tVal)) {
+                    const err = Math.abs(fVal - tVal);
+                    dashError.textContent = err.toExponential(3);
+                    dashError.className = err < 0.001 ? 'dash-value dash-green' : 'dash-value dash-red';
+                }
+            }
+        }
+
+        function updateExpressionDisplay(coeffs) {
+            const effectiveN = getEffectiveN(maxN);
+            const expr = generateTaylorExpression(coeffs, expansionPoint, effectiveN);
+            exprOverlay.textContent = expr.replace(/T\d+\(x\) = /, '');
+            taylorExprDisplay.textContent = expr;
+            exprOverlay.textContent = expr.length > 50 ? expr.substring(0, 47) + '...' : expr;
+        }
+
+        // ==================== 交互事件 ====================
+        graphCanvas.addEventListener('pointerdown', function(e) {
+            const rect = getGraphRect();
+            const W = rect.W;
+            const graphH = rect.H;
+            const mx = e.clientX - graphCanvas.getBoundingClientRect().left;
+            const my = e.clientY - graphCanvas.getBoundingClientRect().top;
+
+            const epCanvasX = toCanvasX(expansionPoint, W);
+            const epCanvasY = toCanvasY(currentFunc(expansionPoint), graphH);
+            const dist = Math.hypot(mx - epCanvasX, my - epCanvasY);
+
+            if (dist < 16) {
+                draggingExpansionPoint = true;
+                graphCanvas.style.cursor = 'grabbing';
+                e.preventDefault();
+                return;
+            }
+
+            if (e.button === 2 || (e.button === 0 && e.ctrlKey)) {
+                panning = true;
+                panStart = { x: e.clientX, y: e.clientY, xMin, xMax, yMin, yMax };
+                graphCanvas.style.cursor = 'grabbing';
+                e.preventDefault();
+                return;
+            }
+            mouseCanvasX = mx;
+            mouseY = my;
+            draw();
+        });
+
+        window.addEventListener('pointermove', function(e) {
+            const rect = graphCanvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            const { W, H } = getGraphRect();
+            const graphH = H;
+
+            if (draggingExpansionPoint) {
+                expansionPoint = Math.max(xMin, Math.min(xMax, toMathX(mx, W)));
+                inputA.value = parseFloat(expansionPoint.toFixed(2));
+                draw();
+                return;
+            }
+            if (panning && panStart) {
+                const dx = (e.clientX - panStart.x) / W * (panStart.xMax - panStart.xMin);
+                const dy = (e.clientY - panStart.y) / graphH * (panStart.yMax - panStart.yMin);
+                xMin = panStart.xMin - dx;
+                xMax = panStart.xMax - dx;
+                yMin = panStart.yMin + dy;
+                yMax = panStart.yMax + dy;
+                draw();
+                return;
+            }
+            mouseCanvasX = mx;
+            mouseY = my;
+            draw();
+        });
+
+        window.addEventListener('pointerup', function() {
+            draggingExpansionPoint = false;
+            panning = false;
+            panStart = null;
+            graphCanvas.style.cursor = 'crosshair';
+        });
+
+        graphCanvas.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            const rect = graphCanvas.getBoundingClientRect();
+            const { W, H } = getGraphRect();
+            const graphH = H;
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            const mathX = toMathX(mx, W);
+            const mathY = toMathY(my, graphH);
+            const zoom = e.deltaY < 0 ? 0.88 : 1.12;
+            xMin = mathX - (mathX - xMin) * zoom;
+            xMax = mathX + (xMax - mathX) * zoom;
+            yMin = mathY - (mathY - yMin) * zoom;
+            yMax = mathY + (yMax - mathY) * zoom;
+            draw();
+        }, { passive: false });
+
+        graphCanvas.addEventListener('contextmenu', e => e.preventDefault());
+        graphCanvas.addEventListener('mouseleave', function() {
+            mouseCanvasX = null;
+            mouseY = null;
+            errorTooltip.style.display = 'none';
+            cursorInfo.innerHTML = 'f(x) = —<br>Tₙ(x) = —<br>|E| = —';
+            draw();
+        });
+
+        // ==================== 滑块与参数 ====================
+        function onSliderChange() {
+            maxN = parseInt(nSlider.value);
+            nDisplay.textContent = getEffectiveN(maxN);
+            draw();
+        }
+
+        function adjustN(delta) {
+            maxN = Math.max(0, Math.min(15, maxN + delta));
+            nSlider.value = maxN;
+            nDisplay.textContent = getEffectiveN(maxN);
+            draw();
+        }
+
+        function onParamChange() {
+            expansionPoint = parseFloat(inputA.value) || 0;
+            draw();
+        }
+
+        function setStepping(s) {
+            stepping = s;
+            document.querySelectorAll('.mode-btn[data-stepping]').forEach(b => b.classList.remove('active'));
+            const btn = document.querySelector(`.mode-btn[data-stepping="${s}"]`);
+            if (btn) btn.classList.add('active');
+            nDisplay.textContent = getEffectiveN(maxN);
+            draw();
+        }
+
+        function onOptionChange() {
+            draw();
+        }
+
+        window.onSliderChange = onSliderChange;
+        window.adjustN = adjustN;
+        window.onParamChange = onParamChange;
+        window.setStepping = setStepping;
+        window.onOptionChange = onOptionChange;
+
+        // ==================== 函数切换 ====================
+        document.getElementById('funcGroup').addEventListener('click', function(e) {
+            const btn = e.target.closest('.func-btn');
+            if (!btn) return;
+            document.querySelectorAll('.func-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentFuncExpr = btn.dataset.func;
+            currentFunc = compileExpr(currentFuncExpr);
+            symbolicType = btn.dataset.symbolic;
+            expansionPoint = parseFloat(btn.dataset.a) || 0;
+            inputA.value = expansionPoint;
+            // 调整视口
+            if (symbolicType === 'ln1p') { xMin = -1.5;
+                xMax = 3;
+                yMin = -3;
+                yMax = 3; } else if (symbolicType === 'geo') { xMin = -3;
+                xMax = 3;
+                yMin = -3;
+                yMax = 6; } else { xMin = -6;
+                xMax = 6;
+                yMin = -4;
+                yMax = 4; }
+            mouseCanvasX = null;
+            draw();
+        });
+
+        // ==================== 动画 ====================
+        function toggleAnimation() {
+            if (isAnimating) { stopAnimation(); return; }
+            isAnimating = true;
+            btnAnimate.textContent = '⏸ 停止';
+            maxN = 0;
+            animateStep();
+        }
+
+        function animateStep() {
+            if (!isAnimating) return;
+            nSlider.value = maxN;
+            nDisplay.textContent = getEffectiveN(maxN);
+            draw();
+            maxN++;
+            if (maxN > 15) { stopAnimation(); return; }
+            animationId = setTimeout(animateStep, 800);
+        }
+
+        function stopAnimation() {
+            isAnimating = false;
+            btnAnimate.textContent = '▶ 逐阶演示';
+            if (animationId) clearTimeout(animationId);
+            maxN = 15;
+            nSlider.value = maxN;
+            nDisplay.textContent = getEffectiveN(maxN);
+            draw();
+        }
+        window.toggleAnimation = toggleAnimation;
+
+        // ==================== 操作 ====================
+        function resetView() {
+            if (symbolicType === 'ln1p') { xMin = -1.5;
+                xMax = 3;
+                yMin = -3;
+                yMax = 3; } else if (symbolicType === 'geo') { xMin = -3;
+                xMax = 3;
+                yMin = -3;
+                yMax = 6; } else { xMin = -6;
+                xMax = 6;
+                yMin = -4;
+                yMax = 4; }
+            draw();
+        }
+
+        function expandView() {
+            xMin *= 3;
+            xMax *= 3;
+            yMin *= 2;
+            yMax *= 2;
+            draw();
+        }
+
+        function exportImage() {
+            const exportCanvas = document.createElement('canvas');
+            const dpr = 2;
+            const { W, fullH } = getGraphRect();
+            const totalH = fullH;
+            exportCanvas.width = W * dpr;
+            exportCanvas.height = totalH * dpr;
+            const exportCtx = exportCanvas.getContext('2d');
+            exportCtx.scale(dpr, dpr);
+            exportCtx.drawImage(graphCanvas, 0, 0, W, totalH);
+            // 信息栏
+            exportCtx.fillStyle = 'rgba(0,0,0,0.8)';
+            exportCtx.fillRect(0, totalH - 26, W, 26);
+            exportCtx.fillStyle = '#fff';
+            exportCtx.font = '11px "JetBrains Mono", monospace';
+            const effN = getEffectiveN(maxN);
+            exportCtx.fillText(
+                `f(x)=${currentFuncExpr} | a=${expansionPoint.toFixed(2)} | n=${effN} | ${new Date().toLocaleString()}`,
+                8, totalH - 8);
+            const link = document.createElement('a');
+            link.download = 'taylor-series-' + new Date().toISOString().slice(0, 10) + '.png';
+            link.href = exportCanvas.toDataURL('image/png');
+            link.click();
+        }
+
+        function copyLatex() {
+            const coeffs = computeTaylorCoefficients(symbolicType, expansionPoint,
+                Math.min(maxN, 15));
+            const effN = getEffectiveN(maxN);
+            let latex = `T_{${effN}}(x) = `;
+            let hasTerm = false;
+            for (let k = 0; k <= effN; k++) {
+                if (stepping === 'odd' && k % 2 === 0) continue;
+                if (stepping === 'even' && k % 2 === 1) continue;
+                const c = coeffs[k];
+                if (Math.abs(c) < 1e-15) continue;
+                const sign = c < 0 ? ' - ' : (hasTerm ? ' + ' : '');
+                const absC = Math.abs(c);
+                let term = '';
+                if (k === 0) {
+                    term = parseFloat(c.toFixed(6)).toString();
+                } else {
+                    const coeffFrac = toLatexFraction(c);
+                    const aStr = Math.abs(expansionPoint) < 1e-10 ? 'x' :
+                        `(x ${expansionPoint >= 0 ? '-' : '+'} ${Math.abs(expansionPoint).toFixed(2)})`;
+                    const powPart = k === 1 ? aStr : `${aStr}^{${k}}`;
+                    term = coeffFrac === '1' ? powPart :
+                        coeffFrac === '-1' ? `-${powPart}` : `${coeffFrac}\\,${powPart}`;
+                }
+                latex += sign + term;
+                hasTerm = true;
+            }
+            if (!hasTerm) latex += '0';
+            navigator.clipboard.writeText(latex).then(() => {
+                const btn = document.querySelector('.btn-latex');
+                const orig = btn.textContent;
+                btn.textContent = '✅ 已复制!';
+                setTimeout(() => { btn.textContent = orig; }, 1500);
+            });
+        }
+
+        function toLatexFraction(c) {
+            const absC = Math.abs(c);
+            if (Math.abs(absC - 1) < 1e-10) return c < 0 ? '-1' : '1';
+            for (let denom = 2; denom <= 1000; denom++) {
+                const num = Math.round(absC * denom);
+                if (Math.abs(num / denom - absC) < 1e-10) {
+                    return (c < 0 ? '-' : '') + `\\frac{${num}}{${denom}}`;
+                }
+            }
+            return parseFloat(c.toFixed(6)).toString();
+        }
+
+        function showHelp() {
+            alert(
+                '📈 泰勒逼近演示器 - 使用说明\n\n' +
+                '【核心交互】\n' +
+                '• 拖拽🔴展开点标记改变展开位置\n' +
+                '• 滑块调整阶数 (0~15)\n' +
+                '• "逐阶演示"自动播放多项式生长过程\n\n' +
+                '【图形操作】\n' +
+                '• 🖱️ 移动鼠标查看误差棒与实时数值\n' +
+                '• 滚轮缩放\n' +
+                '• 右键/ctrl+左键平移\n\n' +
+                '【显示选项】\n' +
+                '• 历史快照：同时显示 n=1,3,5,7\n' +
+                '• 误差热力图：底部彩色条带\n' +
+                '• 收敛半径：ln(1+x)与1/(1-x)的光墙\n\n' +
+                '【导出】\n' +
+                '• 📸 导出带标签图片\n' +
+                '• 📋 复制LaTeX表达式\n' +
+                '• 🔍 拉远视角查看发散行为'
+            );
+        }
+
+        window.resetView = resetView;
+        window.expandView = expandView;
+        window.exportImage = exportImage;
+        window.copyLatex = copyLatex;
+        window.showHelp = showHelp;
+
+        // ==================== 初始化 ====================
+        window.addEventListener('resize', draw);
+        if (window.ResizeObserver) {
+            new ResizeObserver(() => draw()).observe(graphContainer);
+        }
+        window.addEventListener('load', function() {
+            nDisplay.textContent = getEffectiveN(maxN);
+            draw();
+        });
+    })();
+</script>
+
+</body>
+</html>

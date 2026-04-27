@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>定积分可视化工具 · 黎曼和收敛演示</title>
+    <style>
+        :root {
+            --bg: #0b0b15;
+            --panel-bg: #141428;
+            --section-bg: #1a1a32;
+            --border: #252545;
+            --text: #c8c8e0;
+            --text-secondary: #7a7aa0;
+            --accent-blue: #4f9fcf;
+            --accent-red: #e05161;
+            --accent-green: #4caf84;
+            --accent-purple: #b87fd9;
+            --accent-orange: #ff8c42;
+            --accent-cyan: #48c9b0;
+            --accent-pink: #e06c9f;
+            --display-bg: #0d0d20;
+            --btn-bg: #262645;
+            --btn-hover: #353560;
+            --graph-bg: #0d1117;
+            --golden: #e5c07b;
+            --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* ========== 顶部标题栏 ========== */
+        .header {
+            padding: 8px 20px;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+            flex-shrink: 0;
+        }
+        .header .logo {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--accent-orange);
+            letter-spacing: 1px;
+        }
+        .header .subtitle {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin-left: 10px;
+        }
+        .header-links {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+        }
+        .header-links a {
+            color: var(--accent-blue);
+            text-decoration: none;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .header-links a:hover {
+            color: #fff;
+        }
+
+        /* ========== 主体布局 ========== */
+        .main-layout {
+            display: flex;
+            flex: 1;
+            gap: 10px;
+            padding: 10px;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        /* ========== 左侧画布区域 ========== */
+        .graph-panel {
+            flex: 1;
+            background: var(--graph-bg);
+            border-radius: 14px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border);
+            cursor: default;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        #graphCanvas {
+            display: block;
+            width: 100%;
+            flex: 1;
+            cursor: default;
+        }
+
+        /* 画布上的浮动信息 */
+        .canvas-overlay-top {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-family: var(--mono);
+            font-size: 0.85rem;
+            color: var(--accent-cyan);
+            pointer-events: none;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .integral-symbol-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: var(--mono);
+            font-size: 2.5rem;
+            color: rgba(255, 255, 255, 0.15);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.8s ease;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .hint-bar {
+            position: absolute;
+            bottom: 8px;
+            right: 12px;
+            color: #444;
+            font-size: 0.7rem;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 4px 10px;
+            border-radius: 6px;
+            pointer-events: none;
+        }
+        .error-indicator {
+            position: absolute;
+            bottom: 10px;
+            left: 14px;
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            color: var(--accent-red);
+            pointer-events: none;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+
+        /* 残差子图 */
+        .residual-panel {
+            height: 80px;
+            background: #0a0a18;
+            border-top: 1px solid var(--border);
+            position: relative;
+            flex-shrink: 0;
+        }
+        #residualCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .residual-label {
+            position: absolute;
+            top: 4px;
+            left: 10px;
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            pointer-events: none;
+            font-family: var(--mono);
+        }
+
+        /* ========== 右侧控制面板 ========== */
+        .control-panel {
+            width: 360px;
+            min-width: 360px;
+            background: var(--panel-bg);
+            border-radius: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 12px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border);
+        }
+        .control-panel::-webkit-scrollbar {
+            width: 5px;
+        }
+        .control-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .control-panel::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 10px;
+        }
+
+        /* 各控制区 */
+        .section {
+            background: var(--section-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 12px;
+            flex-shrink: 0;
+        }
+        .section-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--accent-orange);
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* 函数选择 */
+        .func-select-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .func-btn {
+            padding: 7px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--btn-bg);
+            color: var(--text);
+            cursor: pointer;
+            font-family: var(--mono);
+            font-size: 0.78rem;
+            transition: all 0.15s;
+        }
+        .func-btn:hover {
+            background: var(--btn-hover);
+            border-color: var(--accent-blue);
+        }
+        .func-btn.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: #fff;
+            font-weight: 700;
+        }
+        .custom-input-row {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .custom-input-row input {
+            flex: 1;
+            background: var(--display-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 7px 10px;
+            color: #fff;
+            font-family: var(--mono);
+            font-size: 0.8rem;
+            outline: none;
+        }
+        .custom-input-row input:focus {
+            border-color: var(--accent-blue);
+        }
+        .custom-input-row button {
+            padding: 7px 12px;
+            border-radius: 6px;
+            border: none;
+            background: var(--accent-green);
+            color: #000;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 0.78rem;
+        }
+
+        /* 区间输入 */
+        .interval-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .interval-row label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        .interval-row input {
+            width: 70px;
+            background: var(--display-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 8px;
+            color: #fff;
+            font-family: var(--mono);
+            font-size: 0.8rem;
+            outline: none;
+            text-align: center;
+        }
+        .interval-row input:focus {
+            border-color: var(--accent-blue);
+        }
+
+        /* 模式选择按钮 */
+        .mode-btn-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+        }
+        .mode-btn {
+            padding: 9px 8px;
+            border-radius: 7px;
+            border: 1px solid var(--border);
+            background: var(--btn-bg);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.78rem;
+            text-align: center;
+            transition: all 0.15s;
+            font-weight: 500;
+        }
+        .mode-btn:hover {
+            background: var(--btn-hover);
+        }
+        .mode-btn.active-left {
+            background: #5a2020;
+            border-color: var(--accent-red);
+            color: #fff;
+        }
+        .mode-btn.active-right {
+            background: #1a3a5a;
+            border-color: var(--accent-blue);
+            color: #fff;
+        }
+        .mode-btn.active-mid {
+            background: #1a4a3a;
+            border-color: var(--accent-cyan);
+            color: #fff;
+        }
+        .mode-btn.active-trap {
+            background: #3a1a4a;
+            border-color: var(--accent-purple);
+            color: #fff;
+        }
+
+        /* 滑块 */
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .slider-group input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent-orange);
+            cursor: pointer;
+        }
+        .slider-buttons {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .slider-buttons button {
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid var(--border);
+            background: var(--btn-bg);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+        .slider-buttons button:hover {
+            background: var(--btn-hover);
+        }
+        .slider-buttons .n-display {
+            font-family: var(--mono);
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            min-width: 40px;
+            text-align: center;
+        }
+
+        /* 仪表盘 */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .dash-item {
+            background: var(--display-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+        .dash-item.full {
+            grid-column: 1 / -1;
+        }
+        .dash-label {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+        .dash-value {
+            font-family: var(--mono);
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #fff;
+            transition: all 0.2s ease;
+        }
+        .dash-value.error-high {
+            color: var(--accent-red);
+        }
+        .dash-value.error-low {
+            color: var(--accent-green);
+        }
+        .dash-value.mode-left {
+            color: var(--accent-red);
+        }
+        .dash-value.mode-right {
+            color: var(--accent-blue);
+        }
+        .dash-value.mode-mid {
+            color: var(--accent-cyan);
+        }
+        .dash-value.mode-trap {
+            color: var(--accent-purple);
+        }
+        .dash-exact {
+            color: var(--accent-green);
+        }
+
+        @keyframes pulse {
+            0%,
+            100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.08);
+            }
+        }
+        .pulse {
+            animation: pulse 0.3s ease-in-out;
+        }
+
+        /* 操作按钮 */
+        .action-row {
+            display: flex;
+            gap: 8px;
+        }
+        .action-row button {
+            flex: 1;
+            padding: 10px;
+            border-radius: 7px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.15s;
+        }
+        .btn-export {
+            background: var(--accent-orange);
+            color: #000;
+        }
+        .btn-copy {
+            background: var(--accent-blue);
+            color: #000;
+        }
+        .btn-animate {
+            background: var(--accent-purple);
+            color: #fff;
+        }
+        .action-row button:hover {
+            filter: brightness(1.2);
+        }
+
+        @media (max-width: 900px) {
+            .main-layout {
+                flex-direction: column;
+            }
+            .control-panel {
+                width: 100%;
+                min-width: unset;
+                max-height: 40vh;
+            }
+            .graph-panel {
+                min-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- 顶部标题栏 -->
+<div class="header">
+    <div>
+        <span class="logo">∫ 定积分可视化工具</span>
+        <span class="subtitle">黎曼和收敛演示 · 左端点 / 右端点 / 中点 / 梯形</span>
+    </div>
+    <div class="header-links">
+        <a onclick="resetView()">🔄 重置视口</a>
+        <a onclick="exportImage()">📸 导出图片</a>
+        <a onclick="copyData()">📋 复制数据</a>
+        <a onclick="showHelp()">❓ 帮助</a>
+    </div>
+</div>
+
+<!-- 主体 -->
+<div class="main-layout">
+
+    <!-- ========== 左侧：图形区域 ========== -->
+    <div class="graph-panel" id="graphContainer">
+        <canvas id="graphCanvas"></canvas>
+        <div class="canvas-overlay-top" id="nOverlay">n = 10</div>
+        <div class="integral-symbol-overlay" id="integralSymbol">∫₀^π sin(x) dx = 2</div>
+        <div class="hint-bar">🖱️ 滚轮缩放 | 右键平移</div>
+        <div class="error-indicator" id="errorIndicator">|E| = 0.0345</div>
+        <!-- 残差子图 -->
+        <div class="residual-panel">
+            <canvas id="residualCanvas"></canvas>
+            <div class="residual-label">误差分布 |f(x) - 近似|</div>
+        </div>
+    </div>
+
+    <!-- ========== 右侧：控制面板 ========== -->
+    <div class="control-panel">
+
+        <!-- 📊 仪表盘 -->
+        <div class="section">
+            <div class="section-title">📊 数值仪表盘</div>
+            <div class="dashboard">
+                <div class="dash-item">
+                    <div class="dash-label">黎曼和（近似值）</div>
+                    <div class="dash-value mode-left" id="dashApprox">≈ 2.0345</div>
+                </div>
+                <div class="dash-item">
+                    <div class="dash-label">精确积分值</div>
+                    <div class="dash-value dash-exact" id="dashExact">= 2.0000</div>
+                </div>
+                <div class="dash-item">
+                    <div class="dash-label">绝对误差 |E|</div>
+                    <div class="dash-value error-high" id="dashError">0.0345</div>
+                </div>
+                <div class="dash-item">
+                    <div class="dash-label">误差缩减率</div>
+                    <div class="dash-value" id="dashReduction">↓ —</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 📐 函数选择 -->
+        <div class="section">
+            <div class="section-title">📐 积分函数</div>
+            <div class="func-select-group" id="funcGroup">
+                <button class="func-btn active" data-func="sin(x)" data-a="0" data-b="3.141592653589793">sin(x)</button>
+                <button class="func-btn" data-func="x^2" data-a="0" data-b="1">x²</button>
+                <button class="func-btn" data-func="sqrt(x)" data-a="0" data-b="4">√x</button>
+                <button class="func-btn" data-func="exp(x)" data-a="0" data-b="1">eˣ</button>
+                <button class="func-btn" data-func="1/x" data-a="1" data-b="2">1/x</button>
+            </div>
+            <div class="custom-input-row">
+                <input type="text" id="customFuncInput" placeholder="自定义: x^3-3*x" spellcheck="false">
+                <button onclick="applyCustom()">应用</button>
+            </div>
+        </div>
+
+        <!-- 📏 积分区间 -->
+        <div class="section">
+            <div class="section-title">📏 积分区间</div>
+            <div class="interval-row">
+                <label>下限 a</label>
+                <input type="number" id="inputA" value="0" step="any" onchange="onIntervalChange()">
+                <label>上限 b</label>
+                <input type="number" id="inputB" value="3.141592653589793" step="any" onchange="onIntervalChange()">
+                <label>精确值</label>
+                <input type="text" id="inputExact" value="2" onchange="onExactChange()" style="width:60px;">
+            </div>
+        </div>
+
+        <!-- ⚡ 黎曼和模式 -->
+        <div class="section">
+            <div class="section-title">⚡ 近似模式</div>
+            <div class="mode-btn-group">
+                <button class="mode-btn active-left" data-mode="left" onclick="setMode('left')">🔴 左端点</button>
+                <button class="mode-btn" data-mode="right" onclick="setMode('right')">🔵 右端点</button>
+                <button class="mode-btn" data-mode="mid" onclick="setMode('mid')">🩵 中点法则</button>
+                <button class="mode-btn" data-mode="trap" onclick="setMode('trap')">🟣 梯形法则</button>
+            </div>
+        </div>
+
+        <!-- 🎚️ 矩形数量 -->
+        <div class="section">
+            <div class="section-title">🎚️ 矩形数量 n</div>
+            <div class="slider-group">
+                <input type="range" id="nSlider" min="1" max="100" value="10" step="1" oninput="onSliderChange()">
+                <div class="slider-buttons">
+                    <button onclick="adjustN(-10)">−10</button>
+                    <button onclick="adjustN(-1)">−1</button>
+                    <span class="n-display" id="nDisplay">10</span>
+                    <button onclick="adjustN(1)">+1</button>
+                    <button onclick="adjustN(10)">+10</button>
+                    <button class="btn-animate" onclick="toggleAnimation()" id="btnAnimate" style="margin-left:auto;">▶ 演示收敛</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ⚙️ 操作 -->
+        <div class="section">
+            <div class="section-title">⚙️ 操作</div>
+            <div class="action-row">
+                <button class="btn-export" onclick="exportImage()">📸 导出图片</button>
+                <button class="btn-copy" onclick="copyData()">📋 复制数据</button>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+    (function() {
+        // ==================== DOM 引用 ====================
+        const graphCanvas = document.getElementById('graphCanvas');
+        const graphCtx = graphCanvas.getContext('2d');
+        const residualCanvas = document.getElementById('residualCanvas');
+        const residualCtx = residualCanvas.getContext('2d');
+        const graphContainer = document.getElementById('graphContainer');
+        const residualPanel = graphContainer.querySelector('.residual-panel');
+
+        const nSlider = document.getElementById('nSlider');
+        const nDisplay = document.getElementById('nDisplay');
+        const nOverlay = document.getElementById('nOverlay');
+        const errorIndicator = document.getElementById('errorIndicator');
+        const integralSymbol = document.getElementById('integralSymbol');
+        const dashApprox = document.getElementById('dashApprox');
+        const dashExact = document.getElementById('dashExact');
+        const dashError = document.getElementById('dashError');
+        const dashReduction = document.getElementById('dashReduction');
+        const inputA = document.getElementById('inputA');
+        const inputB = document.getElementById('inputB');
+        const inputExact = document.getElementById('inputExact');
+        const customFuncInput = document.getElementById('customFuncInput');
+        const btnAnimate = document.getElementById('btnAnimate');
+
+        // ==================== 状态变量 ====================
+        let currentFuncExpr = 'sin(x)';
+        let currentFunc = Math.sin;
+
+        // ==================== 读取URL参数中的函数 ====================
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const passedFunc = urlParams.get('func');
+            if (passedFunc) {
+                currentFuncExpr = decodeURIComponent(passedFunc);
+                currentFunc = compileExpr(currentFuncExpr);
+                // 更新预设按钮激活状态
+                document.querySelectorAll('.func-btn').forEach(b => b.classList.remove('active'));
+                // 更新自定义输入框
+                const customInput = document.getElementById('customFuncInput');
+                if (customInput) customInput.value = currentFuncExpr;
+                // 延迟重绘
+                setTimeout(() => {
+                    autoFitView();
+                    drawGraph();
+                }, 300);
+            }
+        })();
+        let a = 0;
+        let b = Math.PI;
+        let exactValue = 2;
+        let n = 10;
+        let mode = 'left'; // 'left' | 'right' | 'mid' | 'trap'
+        let previousError = null;
+        let isAnimating = false;
+        let animationId = null;
+
+        // 视口参数
+        let xMin, xMax, yMin, yMax;
+
+        // ==================== 表达式编译 ====================
+        function compileExpr(expr) {
+            let processed = expr
+                .replace(/\^/g, '**')
+                .replace(/pi/g, '(Math.PI)')
+                .replace(/(?<![a-zA-Z])e(?![a-zA-Z+\-^*\/()])/g, '(Math.E)')
+                .replace(/abs/g, 'Math.abs')
+                .replace(/sqrt/g, 'Math.sqrt')
+                .replace(/cbrt/g, 'Math.cbrt')
+                .replace(/sin/g, 'Math.sin')
+                .replace(/cos/g, 'Math.cos')
+                .replace(/tan/g, 'Math.tan')
+                .replace(/exp/g, 'Math.exp')
+                .replace(/ln/g, 'Math.log')
+                .replace(/log/g, 'Math.log10')
+                .replace(/floor/g, 'Math.floor')
+                .replace(/ceil/g, 'Math.ceil');
+            try {
+                return new Function('x', `try { return (${processed}); } catch(e) { return NaN; }`);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // ==================== 自适应视口 ====================
+        function autoFitView() {
+            const padding = 0.15;
+            const xRange = b - a;
+            xMin = a - padding * xRange;
+            xMax = b + padding * xRange;
+
+            // 采样找y范围
+            let ySampledMin = Infinity, ySampledMax = -Infinity;
+            const steps = 200;
+            for (let i = 0; i <= steps; i++) {
+                const x = a + (b - a) * i / steps;
+                const y = currentFunc(x);
+                if (isFinite(y) && !isNaN(y)) {
+                    ySampledMin = Math.min(ySampledMin, y);
+                    ySampledMax = Math.max(ySampledMax, y);
+                }
+            }
+            const yRange = Math.max(ySampledMax - ySampledMin, 0.5);
+            yMin = Math.min(0, ySampledMin - padding * yRange);
+            yMax = Math.max(ySampledMax + padding * yRange, yMin + 1);
+        }
+
+        // ==================== Canvas 坐标转换 ====================
+        function getGraphRect() {
+            return graphCanvas.getBoundingClientRect();
+        }
+
+        function toCanvasX(mathX, W) {
+            return ((mathX - xMin) / (xMax - xMin)) * W;
+        }
+
+        function toCanvasY(mathY, H) {
+            return H - ((mathY - yMin) / (yMax - yMin)) * H;
+        }
+
+        function toMathX(canvasX, W) {
+            return xMin + (canvasX / W) * (xMax - xMin);
+        }
+
+        // ==================== 黎曼和计算 ====================
+        function computeRiemannSum() {
+            const dx = (b - a) / n;
+            let sum = 0;
+            const errors = [];
+            const rectData = [];
+
+            for (let i = 0; i < n; i++) {
+                const xLeft = a + i * dx;
+                const xRight = a + (i + 1) * dx;
+                let sampleX, height;
+
+                switch (mode) {
+                    case 'left':
+                        sampleX = xLeft;
+                        break;
+                    case 'right':
+                        sampleX = xRight;
+                        break;
+                    case 'mid':
+                        sampleX = (xLeft + xRight) / 2;
+                        break;
+                    case 'trap':
+                        // 梯形：上下底平均
+                        const yL = currentFunc(xLeft);
+                        const yR = currentFunc(xRight);
+                        height = (yL + yR) / 2;
+                        sum += height * dx;
+                        // 误差取中点
+                        const midX = (xLeft + xRight) / 2;
+                        const midY = currentFunc(midX);
+                        errors.push(Math.abs(midY - height));
+                        rectData.push({ xLeft, xRight, yL, yR, height, sampleX: midX, midY });
+                        continue;
+                    default:
+                        sampleX = xLeft;
+                }
+
+                if (mode !== 'trap') {
+                    height = currentFunc(sampleX);
+                    sum += height * dx;
+                    const midX = (xLeft + xRight) / 2;
+                    const midY = currentFunc(midX);
+                    errors.push(Math.abs(midY - height));
+                    rectData.push({ xLeft, xRight, height, sampleX, midX, midY });
+                }
+            }
+
+            return { sum, errors, rectData, dx };
+        }
+
+        // ==================== 绘制主图 ====================
+        function drawGraph() {
+            const rect = graphCanvas.getBoundingClientRect();
+            const W = rect.width;
+            const H = rect.height - residualPanel.getBoundingClientRect().height; // 减去残差面板高度
+            const graphH = H;
+
+            const dpr = window.devicePixelRatio || 1;
+            const neededW = W * dpr;
+            const neededH = graphH * dpr;
+
+            if (graphCanvas.width !== neededW || graphCanvas.height !== neededH) {
+                graphCanvas.width = neededW;
+                graphCanvas.height = neededH;
+                graphCanvas.style.width = W + 'px';
+                graphCanvas.style.height = graphH + 'px';
+                graphCtx.setTransform(1, 0, 0, 1, 0, 0);
+                graphCtx.scale(dpr, dpr);
+            }
+
+            const ctx = graphCtx;
+            ctx.clearRect(0, 0, W, graphH);
+
+            // 背景
+            ctx.fillStyle = '#0d1117';
+            ctx.fillRect(0, 0, W, graphH);
+
+            const riemannData = computeRiemannSum();
+            const { rectData, dx, errors } = riemannData;
+
+            // 网格
+            ctx.strokeStyle = '#1a1a30';
+            ctx.lineWidth = 0.5;
+            const gridStepX = Math.pow(10, Math.floor(Math.log10(xMax - xMin))) / 5;
+            const gridStepY = Math.pow(10, Math.floor(Math.log10(yMax - yMin))) / 5;
+            for (let x = Math.floor(xMin / gridStepX) * gridStepX; x <= xMax; x += gridStepX) {
+                ctx.beginPath();
+                ctx.moveTo(toCanvasX(x, W), 0);
+                ctx.lineTo(toCanvasX(x, W), graphH);
+                ctx.stroke();
+            }
+            for (let y = Math.floor(yMin / gridStepY) * gridStepY; y <= yMax; y += gridStepY) {
+                ctx.beginPath();
+                ctx.moveTo(0, toCanvasY(y, graphH));
+                ctx.lineTo(W, toCanvasY(y, graphH));
+                ctx.stroke();
+            }
+
+            // 坐标轴
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 1.5;
+            const axisY = toCanvasY(0, graphH);
+            const axisX = toCanvasX(0, W);
+            ctx.beginPath();
+            ctx.moveTo(0, axisY);
+            ctx.lineTo(W, axisY);
+            ctx.moveTo(axisX, 0);
+            ctx.lineTo(axisX, graphH);
+            ctx.stroke();
+
+            // 真实积分区域（半透明填充）
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(a, W), toCanvasY(0, graphH));
+            for (let i = 0; i <= 200; i++) {
+                const x = a + (b - a) * i / 200;
+                const y = currentFunc(x);
+                if (isFinite(y)) {
+                    ctx.lineTo(toCanvasX(x, W), toCanvasY(y, graphH));
+                }
+            }
+            ctx.lineTo(toCanvasX(b, W), toCanvasY(0, graphH));
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(79, 159, 207, 0.08)';
+            ctx.fill();
+
+            // 函数曲线
+            ctx.beginPath();
+            ctx.strokeStyle = '#4f9fcf';
+            ctx.lineWidth = 2.5;
+            ctx.lineJoin = 'round';
+            let first = true;
+            for (let px = 0; px <= W; px += 2) {
+                const mathX = toMathX(px, W);
+                const mathY = currentFunc(mathX);
+                if (isNaN(mathY) || !isFinite(mathY) || Math.abs(mathY) > 1e6) {
+                    first = true;
+                    continue;
+                }
+                const cy = toCanvasY(mathY, graphH);
+                if (first) { ctx.moveTo(px, cy);
+                    first = false; } else { ctx.lineTo(px, cy); }
+            }
+            ctx.stroke();
+
+            // 绘制矩形/梯形
+            const colors = {
+                left: 'rgba(224, 81, 97, 0.35)',
+                right: 'rgba(79, 159, 207, 0.35)',
+                mid: 'rgba(72, 201, 176, 0.35)',
+                trap: 'rgba(184, 127, 217, 0.35)'
+            };
+            const strokeColors = {
+                left: '#e05161',
+                right: '#4f9fcf',
+                mid: '#48c9b0',
+                trap: '#b87fd9'
+            };
+            const fillColor = colors[mode] || colors.left;
+            const strokeColor = strokeColors[mode] || strokeColors.left;
+
+            rectData.forEach(rd => {
+                const xLeft = rd.xLeft;
+                const xRight = rd.xRight;
+                const cxL = toCanvasX(xLeft, W);
+                const cxR = toCanvasX(xRight, W);
+
+                if (mode === 'trap') {
+                    // 梯形
+                    const cyTopL = toCanvasY(rd.yL, graphH);
+                    const cyTopR = toCanvasY(rd.yR, graphH);
+                    const cyBottom = toCanvasY(0, graphH);
+                    ctx.beginPath();
+                    ctx.moveTo(cxL, cyBottom);
+                    ctx.lineTo(cxL, cyTopL);
+                    ctx.lineTo(cxR, cyTopR);
+                    ctx.lineTo(cxR, cyBottom);
+                    ctx.closePath();
+                    ctx.fillStyle = fillColor;
+                    ctx.fill();
+                    ctx.strokeStyle = strokeColor;
+                    ctx.lineWidth = 0.8;
+                    ctx.stroke();
+                } else {
+                    // 矩形
+                    const cyTop = toCanvasY(rd.height, graphH);
+                    const cyBottom = toCanvasY(0, graphH);
+                    ctx.fillStyle = fillColor;
+                    ctx.fillRect(cxL, Math.min(cyTop, cyBottom), cxR - cxL, Math.abs(cyTop - cyBottom));
+                    ctx.strokeStyle = strokeColor;
+                    ctx.lineWidth = 0.8;
+                    ctx.strokeRect(cxL, Math.min(cyTop, cyBottom), cxR - cxL, Math.abs(cyTop - cyBottom));
+                }
+
+                // 误差线段（中点偏差）
+                if (mode !== 'trap' && rd.midY !== undefined) {
+                    const cyMid = toCanvasY(rd.midY, graphH);
+                    const cyH = toCanvasY(rd.height, graphH);
+                    ctx.beginPath();
+                    ctx.strokeStyle = 'rgba(255,200,100,0.5)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([2, 2]);
+                    const cxMid = (cxL + cxR) / 2;
+                    ctx.moveTo(cxMid, Math.min(cyMid, cyH));
+                    ctx.lineTo(cxMid, Math.max(cyMid, cyH));
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            });
+
+            // 积分符号叠加（n≥50时淡入）
+            const opacity = n >= 50 ? Math.min(1, (n - 50) / 50) : 0;
+            integralSymbol.style.opacity = opacity;
+            if (n >= 50) {
+                const funcName = currentFuncExpr.includes('sin') ? 'sin(x)' :
+                    currentFuncExpr.includes('x^2') ? 'x²' :
+                    currentFuncExpr.includes('sqrt') ? '√x' :
+                    currentFuncExpr.includes('exp') ? 'eˣ' : 'f(x)';
+                integralSymbol.textContent = `∫_${a.toFixed(1)}^${b.toFixed(1)} ${funcName} dx = ${exactValue.toFixed(4)}`;
+            }
+
+            // 更新仪表盘
+            updateDashboard(riemannData);
+            // 更新误差指示器
+            const absError = Math.abs(riemannData.sum - exactValue);
+            errorIndicator.textContent = `|E| = ${absError.toFixed(6)}`;
+            errorIndicator.style.color = absError < 0.01 ? 'var(--accent-green)' : 'var(--accent-red)';
+            nOverlay.textContent = `n = ${n}`;
+
+            // 绘制残差子图
+            drawResidual(errors, dx);
+        }
+
+        // ==================== 残差子图 ====================
+        function drawResidual(errors, dx) {
+            const rect = residualCanvas.getBoundingClientRect();
+            const W = rect.width;
+            const H = rect.height;
+            const dpr = window.devicePixelRatio || 1;
+
+            if (residualCanvas.width !== W * dpr || residualCanvas.height !== H * dpr) {
+                residualCanvas.width = W * dpr;
+                residualCanvas.height = H * dpr;
+                residualCanvas.style.width = W + 'px';
+                residualCanvas.style.height = H + 'px';
+                residualCtx.setTransform(1, 0, 0, 1, 0, 0);
+                residualCtx.scale(dpr, dpr);
+            }
+
+            const ctx = residualCtx;
+            ctx.clearRect(0, 0, W, H);
+            ctx.fillStyle = '#0a0a18';
+            ctx.fillRect(0, 0, W, H);
+
+            if (errors.length === 0) return;
+
+            const maxErr = Math.max(...errors, 1e-10);
+            const padding = { top: 15, bottom: 10, left: 10, right: 10 };
+            const plotW = W - padding.left - padding.right;
+            const plotH = H - padding.top - padding.bottom;
+
+            // 绘制误差曲线
+            ctx.beginPath();
+            ctx.strokeStyle = '#ff8c42';
+            ctx.lineWidth = 1.5;
+            for (let i = 0; i < errors.length; i++) {
+                const x = padding.left + (i / (errors.length - 1 || 1)) * plotW;
+                const y = padding.top + plotH - (errors[i] / maxErr) * plotH;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // 填充下方
+            ctx.lineTo(padding.left + plotW, padding.top + plotH);
+            ctx.lineTo(padding.left, padding.top + plotH);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(255, 140, 66, 0.1)';
+            ctx.fill();
+        }
+
+        // ==================== 仪表盘更新 ====================
+        function updateDashboard(data) {
+            const approx = data.sum;
+            const absError = Math.abs(approx - exactValue);
+
+            dashApprox.textContent = `≈ ${approx.toFixed(6)}`;
+            dashExact.textContent = `= ${exactValue.toFixed(4)}`;
+            dashError.textContent = absError.toFixed(8);
+
+            // 误差颜色
+            if (absError < 0.001) {
+                dashError.className = 'dash-value error-low';
+            } else if (absError > 0.1) {
+                dashError.className = 'dash-value error-high';
+            } else {
+                dashError.className = 'dash-value';
+            }
+
+            // 模式颜色
+            dashApprox.className = 'dash-value mode-' + mode;
+
+            // 误差缩减率
+            if (previousError !== null && previousError > 0) {
+                const reduction = ((previousError - absError) / previousError) * 100;
+                dashReduction.textContent = reduction >= 0 ? `↓ ${reduction.toFixed(1)}%` : `↑ ${Math.abs(reduction).toFixed(1)}%`;
+            } else {
+                dashReduction.textContent = '↓ —';
+            }
+            previousError = absError;
+        }
+
+        // ==================== 重置视口 ====================
+        function resetView() {
+            autoFitView();
+            drawGraph();
+        }
+        window.resetView = resetView;
+
+        // ==================== 滑块事件 ====================
+        function onSliderChange() {
+            n = parseInt(nSlider.value);
+            nDisplay.textContent = n;
+            previousError = null;
+            drawGraph();
+        }
+        window.onSliderChange = onSliderChange;
+
+        function adjustN(delta) {
+            n = Math.max(1, Math.min(100, n + delta));
+            nSlider.value = n;
+            nDisplay.textContent = n;
+            previousError = null;
+            drawGraph();
+        }
+        window.adjustN = adjustN;
+
+        // ==================== 模式切换 ====================
+        function setMode(newMode) {
+            mode = newMode;
+            // 更新按钮样式
+            document.querySelectorAll('.mode-btn').forEach(b => {
+                b.className = 'mode-btn';
+            });
+            const activeBtn = document.querySelector(`.mode-btn[data-mode="${mode}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('active-' + mode);
+            }
+            previousError = null;
+            drawGraph();
+        }
+        window.setMode = setMode;
+
+        // ==================== 函数切换 ====================
+        function selectFunction(funcExpr, newA, newB, newExact) {
+            currentFuncExpr = funcExpr;
+            currentFunc = compileExpr(funcExpr);
+            a = newA;
+            b = newB;
+            exactValue = newExact;
+            inputA.value = a;
+            inputB.value = b;
+            inputExact.value = exactValue;
+            // 更新按钮样式
+            document.querySelectorAll('.func-btn').forEach(b => b.classList.remove('active'));
+            const activeBtn = document.querySelector(`.func-btn[data-func="${funcExpr}"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+            previousError = null;
+            autoFitView();
+            drawGraph();
+        }
+
+        // 预设函数按钮点击
+        document.getElementById('funcGroup').addEventListener('click', function(e) {
+            const btn = e.target.closest('.func-btn');
+            if (!btn) return;
+            const funcExpr = btn.dataset.func;
+            const newA = parseFloat(btn.dataset.a);
+            const newB = parseFloat(btn.dataset.b);
+            // 预设精确值
+            const exactMap = {
+                'sin(x)': 2,
+                'x^2': 1 / 3,
+                'sqrt(x)': 16 / 3,
+                'exp(x)': Math.E - 1,
+                '1/x': Math.log(2)
+            };
+            selectFunction(funcExpr, newA, newB, exactMap[funcExpr] || 0);
+        });
+
+        function applyCustom() {
+            const expr = customFuncInput.value.trim();
+            if (!expr) return;
+            const fn = compileExpr(expr);
+            if (!fn) { alert('表达式无效'); return; }
+            currentFuncExpr = expr;
+            currentFunc = fn;
+            a = parseFloat(inputA.value) || 0;
+            b = parseFloat(inputB.value) || 1;
+            exactValue = parseFloat(inputExact.value) || 0;
+            document.querySelectorAll('.func-btn').forEach(b => b.classList.remove('active'));
+            previousError = null;
+            autoFitView();
+            drawGraph();
+        }
+        window.applyCustom = applyCustom;
+
+        function onIntervalChange() {
+            a = parseFloat(inputA.value) || 0;
+            b = parseFloat(inputB.value) || 1;
+            if (b <= a) b = a + 0.1;
+            inputB.value = b;
+            previousError = null;
+            autoFitView();
+            drawGraph();
+        }
+        window.onIntervalChange = onIntervalChange;
+
+        function onExactChange() {
+            exactValue = parseFloat(inputExact.value) || 0;
+            previousError = null;
+            drawGraph();
+        }
+        window.onExactChange = onExactChange;
+
+        // ==================== 动画 ====================
+        function toggleAnimation() {
+            if (isAnimating) {
+                stopAnimation();
+                return;
+            }
+            isAnimating = true;
+            btnAnimate.textContent = '⏸ 停止';
+            n = 1;
+            animateStep();
+        }
+
+        function animateStep() {
+            if (!isAnimating) return;
+            nSlider.value = n;
+            nDisplay.textContent = n;
+            drawGraph();
+            n++;
+            if (n > 100) {
+                stopAnimation();
+                return;
+            }
+            // 渐进速度：n越小越快，越大越慢
+            const delay = n < 10 ? 200 : n < 30 ? 120 : n < 60 ? 80 : 50;
+            animationId = setTimeout(animateStep, delay);
+        }
+
+        function stopAnimation() {
+            isAnimating = false;
+            btnAnimate.textContent = '▶ 演示收敛';
+            if (animationId) clearTimeout(animationId);
+            n = 100;
+            nSlider.value = n;
+            nDisplay.textContent = n;
+            drawGraph();
+        }
+        window.toggleAnimation = toggleAnimation;
+
+        // ==================== 导出与复制 ====================
+        function exportImage() {
+            // 创建一个组合画布
+            const graphRect = graphCanvas.getBoundingClientRect();
+            const residualRect = residualCanvas.getBoundingClientRect();
+            const totalH = graphRect.height + residualRect.height;
+
+            const exportCanvas = document.createElement('canvas');
+            const dpr = 2;
+            exportCanvas.width = graphRect.width * dpr;
+            exportCanvas.height = totalH * dpr;
+            const exportCtx = exportCanvas.getContext('2d');
+            exportCtx.scale(dpr, dpr);
+
+            // 绘制主图
+            exportCtx.drawImage(graphCanvas, 0, 0, graphRect.width, graphRect.height - residualRect.height,
+                0, 0, graphRect.width, graphRect.height - residualRect.height);
+            // 绘制残差图
+            exportCtx.drawImage(residualCanvas, 0, 0, residualRect.width, residualRect.height,
+                0, graphRect.height - residualRect.height, residualRect.width, residualRect.height);
+
+            // 标签栏
+            exportCtx.fillStyle = 'rgba(0,0,0,0.8)';
+            exportCtx.fillRect(0, totalH - 28, graphRect.width, 28);
+            exportCtx.fillStyle = '#fff';
+            exportCtx.font = '12px "JetBrains Mono", monospace';
+            exportCtx.fillText(
+                `f(x)=${currentFuncExpr} | n=${n} | ${mode.toUpperCase()} | 误差=${Math.abs(computeRiemannSum().sum - exactValue).toFixed(6)} | ${new Date().toLocaleString()}`,
+                10, totalH - 10);
+
+            const link = document.createElement('a');
+            link.download = 'riemann-sum-' + new Date().toISOString().slice(0, 10) + '.png';
+            link.href = exportCanvas.toDataURL('image/png');
+            link.click();
+        }
+        window.exportImage = exportImage;
+
+        function copyData() {
+            const data = computeRiemannSum();
+            const text =
+                `函数: ${currentFuncExpr}\n区间: [${a}, ${b}]\n矩形数 n: ${n}\n模式: ${mode}\n黎曼和: ${data.sum.toFixed(8)}\n精确值: ${exactValue.toFixed(4)}\n绝对误差: ${Math.abs(data.sum - exactValue).toFixed(8)}\n时间: ${new Date().toLocaleString()}`;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.querySelector('.btn-copy');
+                const orig = btn.textContent;
+                btn.textContent = '✅ 已复制!';
+                setTimeout(() => { btn.textContent = orig; }, 1500);
+            });
+        }
+        window.copyData = copyData;
+
+        function showHelp() {
+            alert(
+                '∫ 定积分可视化工具 - 使用说明\n\n' +
+                '【核心交互】\n' +
+                '• 拖动滑块调整矩形数量 n (1~100)\n' +
+                '• 点击"演示收敛"观看动画\n' +
+                '• 切换左/右/中点/梯形法则观察误差变化\n\n' +
+                '【图形操作】\n' +
+                '• 🖱️ 滚轮缩放\n' +
+                '• ✋ 右键拖动平移\n\n' +
+                '【仪表盘】\n' +
+                '• 实时显示黎曼和、精确值、绝对误差\n' +
+                '• 误差缩减率对比前后两次\n' +
+                '• 底部残差图展示各子区间误差分布\n\n' +
+                '【导出】\n' +
+                '• 📸 导出图片带完整标签\n' +
+                '• 📋 复制数据到剪贴板'
+            );
+        }
+        window.showHelp = showHelp;
+
+        // ==================== 图形交互（缩放和平移） ====================
+        let panning = false;
+        let panStart = null;
+
+        graphCanvas.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            const rect = graphCanvas.getBoundingClientRect();
+            const W = rect.width;
+            const graphH = rect.height - residualPanel.getBoundingClientRect().height;
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            const mathX = toMathX(mx, W);
+            const mathY = yMax - (my / graphH) * (yMax - yMin);
+            const zoom = e.deltaY < 0 ? 0.88 : 1.12;
+            xMin = mathX - (mathX - xMin) * zoom;
+            xMax = mathX + (xMax - mathX) * zoom;
+            yMin = mathY - (mathY - yMin) * zoom;
+            yMax = mathY + (yMax - mathY) * zoom;
+            drawGraph();
+        }, { passive: false });
+
+        graphCanvas.addEventListener('pointerdown', function(e) {
+            if (e.button === 2 || (e.button === 0 && e.ctrlKey)) {
+                panning = true;
+                panStart = {
+                    x: e.clientX,
+                    y: e.clientY,
+                    xMin,
+                    xMax,
+                    yMin,
+                    yMax
+                };
+                graphCanvas.style.cursor = 'grabbing';
+                e.preventDefault();
+            }
+        });
+
+        window.addEventListener('pointermove', function(e) {
+            if (!panning || !panStart) return;
+            const rect = graphCanvas.getBoundingClientRect();
+            const W = rect.width;
+            const graphH = rect.height - residualPanel.getBoundingClientRect().height;
+            const dx = (e.clientX - panStart.x) / W * (panStart.xMax - panStart.xMin);
+            const dy = (e.clientY - panStart.y) / graphH * (panStart.yMax - panStart.yMin);
+            xMin = panStart.xMin - dx;
+            xMax = panStart.xMax - dx;
+            yMin = panStart.yMin + dy;
+            yMax = panStart.yMax + dy;
+            drawGraph();
+        });
+
+        window.addEventListener('pointerup', function() {
+            panning = false;
+            panStart = null;
+            graphCanvas.style.cursor = 'default';
+        });
+
+        graphCanvas.addEventListener('contextmenu', e => e.preventDefault());
+
+        window.addEventListener('resize', drawGraph);
+        if (window.ResizeObserver) {
+            new ResizeObserver(() => drawGraph()).observe(graphContainer);
+        }
+
+        // ==================== 初始化 ====================
+        function init() {
+            autoFitView();
+            drawGraph();
+        }
+
+        window.addEventListener('load', init);
+    })();
+</script>
+
+</body>
+</html>

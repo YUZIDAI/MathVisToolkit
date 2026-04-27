@@ -1,0 +1,24 @@
+{
+  "name": "mathvislab",
+  "version": "1.0.0",
+  "description": "MathVisLab — 微积分几何可视化教学平台",
+  "main": "lab.html",
+  "scripts": {
+    "start": "npx live-server --port=3000 --open=lab.html",
+    "dev": "npx live-server --port=3000 --open=lab.html",
+    "build": "echo '静态项目无需构建，直接用浏览器打开 lab.html'"
+  },
+  "keywords": [
+    "calculus",
+    "visualization",
+    "math",
+    "education",
+    "canvas",
+    "interactive"
+  ],
+  "author": "工科数学分析课程教学团队",
+  "license": "MIT",
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}

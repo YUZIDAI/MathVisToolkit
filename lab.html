@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MathVisLab — 微积分几何可视化平台</title>
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #0b0b1a;
+            --card-bg: #151530;
+            --card-hover: #1e1e45;
+            --border: #252550;
+            --text: #d8d8f0;
+            --text-secondary: #8888b0;
+            --accent-blue: #4f9fcf;
+            --accent-red: #e05161;
+            --accent-green: #4caf84;
+            --accent-purple: #b87fd9;
+            --accent-gold: #f0c060;
+            --accent-orange: #ff8c42;
+            --accent-cyan: #48c9b0;
+            --accent-pink: #e06c9f;
+            --btn-bg: #1e1e40;
+            --btn-hover: #2e2e60;
+            --display-bg: #0a0a20;
+            --shadow: 0 8px 32px rgba(0,0,0,0.4);
+            --shadow-lg: 0 16px 48px rgba(0,0,0,0.5);
+            --font-sans: 'Inter', 'Segoe UI', 'PingFang SC', system-ui, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+        }
+
+        [data-theme="light"] {
+            --bg: #f0f2f5;
+            --card-bg: #ffffff;
+            --card-hover: #f8f9fc;
+            --border: #d8dce3;
+            --text: #1a1a2e;
+            --text-secondary: #666680;
+            --btn-bg: #e8ecf1;
+            --btn-hover: #d8dce3;
+            --display-bg: #f5f6fa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 20px 30px;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* ========== 主题切换按钮 ========== */
+        .theme-toggle {
+            position: fixed;
+            top: 14px;
+            right: 18px;
+            padding: 7px 14px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            background: var(--card-bg);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 0.82rem;
+            transition: all 0.2s;
+            z-index: 100;
+            box-shadow: var(--shadow);
+        }
+        .theme-toggle:hover {
+            border-color: var(--accent-blue);
+        }
+
+        /* ========== 顶部标题 ========== */
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header .logo {
+            font-size: 2.8rem;
+            margin-bottom: 4px;
+        }
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple), var(--accent-red));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 1px;
+        }
+        .header .subtitle {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            letter-spacing: 2px;
+        }
+
+        /* ========== 函数区容器 ========== */
+        .function-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px 24px;
+            max-width: 700px;
+            width: 100%;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+            transition: all 0.3s;
+        }
+
+        /* 精简模式（默认） */
+        .function-bar-compact {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .function-bar-compact label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            color: var(--text);
+        }
+        .function-bar-compact .expr-display {
+            flex: 1;
+            min-width: 140px;
+            padding: 10px 14px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            background: var(--display-bg);
+            color: var(--text);
+            font-family: var(--font-mono);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .function-bar-compact .expr-display:hover {
+            border-color: var(--accent-blue);
+        }
+        .function-bar-compact button {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .btn-apply {
+            background: var(--accent-blue);
+            color: #fff;
+        }
+        .btn-apply:hover { filter: brightness(1.15); }
+        .btn-reset {
+            background: var(--border);
+            color: var(--text);
+        }
+        .btn-reset:hover { background: var(--text-secondary); }
+        .btn-builder-toggle {
+            background: var(--accent-purple);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-builder-toggle:hover { filter: brightness(1.15); }
+        .btn-builder-toggle .arrow {
+            transition: transform 0.3s;
+            display: inline-block;
+        }
+        .btn-builder-toggle.expanded .arrow {
+            transform: rotate(180deg);
+        }
+
+        /* 构建器主体（默认隐藏） */
+        .function-builder {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease, margin-top 0.3s ease, opacity 0.3s ease;
+            opacity: 0;
+            margin-top: 0;
+        }
+        .function-builder.open {
+            max-height: 700px;  /* 足够容纳所有内容 */
+            opacity: 1;
+            margin-top: 16px;
+        }
+
+        /* 构建器内部分区 */
+        .builder-section {
+            background: rgba(0,0,0,0.15);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+        }
+        .builder-section:last-child {
+            margin-bottom: 0;
+        }
+        .builder-section-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--accent-orange);
+            margin-bottom: 7px;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .builder-section-title .emoji {
+            font-size: 0.9rem;
+        }
+
+        /* 按钮网格 */
+        .btn-grid {
+            display: grid;
+            gap: 4px;
+        }
+        .btn-grid.cols-6 { grid-template-columns: repeat(6, 1fr); }
+        .btn-grid.cols-5 { grid-template-columns: repeat(5, 1fr); }
+        .btn-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+        .btn-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+
+        /* 构建器按钮 */
+        .bld-btn {
+            padding: 8px 4px;
+            font-size: 0.72rem;
+            font-weight: 500;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.12s ease;
+            white-space: nowrap;
+            text-align: center;
+            background: var(--btn-bg);
+            color: var(--text);
+        }
+        .bld-btn:hover {
+            background: var(--btn-hover);
+            transform: translateY(-1px);
+        }
+        .bld-btn:active {
+            transform: scale(0.95);
+        }
+        .bld-btn.btn-constant { background: #2a2a48; color: #e0e0ff; }
+        .bld-btn.btn-variable { background: #1e3a3a; color: #a8e8e8; }
+        .bld-btn.btn-operator { background: #3a2818; color: #ffb870; font-weight: 700; font-size: 0.85rem; }
+        .bld-btn.btn-trig { background: #1e2e3a; color: #88b8e8; }
+        .bld-btn.btn-explog { background: #1e3a2e; color: #88d8a8; }
+        .bld-btn.btn-other { background: #2e2828; color: #e0a0a0; }
+        .bld-btn.btn-gold { background: #3a3020; color: #f0c060; font-weight: 700; }
+
+        /* 构建器控制行 */
+        .builder-controls {
+            display: flex;
+            gap: 6px;
+            margin-top: 10px;
+        }
+        .builder-controls button {
+            flex: 1;
+            padding: 11px;
+            border: none;
+            border-radius: 7px;
+            font-weight: 700;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .builder-controls .btn-ac {
+            background: #4a1515;
+            color: #ff8888;
+        }
+        .builder-controls .btn-backspace {
+            background: #3a2515;
+            color: #ffb870;
+        }
+        .builder-controls .btn-apply-builder {
+            background: #154a3a;
+            color: #88ffb8;
+            flex: 2;
+        }
+
+        /* ========== 同步状态 ========== */
+        .sync-info {
+            margin-bottom: 24px;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+        .sync-info .dot {
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            margin-right: 3px;
+        }
+        .dot.green { background: var(--accent-green); }
+
+        /* ========== 工具卡片网格 ========== */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+            gap: 20px;
+            max-width: 1100px;
+            width: 100%;
+        }
+
+        .tool-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px 22px;
+            text-decoration: none;
+            color: var(--text);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        .tool-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 14px 36px rgba(0,0,0,0.4);
+            border-color: var(--accent-blue);
+        }
+        .tool-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+        .tool-card.card-tangent::before { background: var(--accent-red); }
+        .tool-card.card-integral::before { background: var(--accent-orange); }
+        .tool-card.card-taylor::before { background: var(--accent-purple); }
+        .tool-card.card-polar::before { background: var(--accent-cyan); }
+
+        .tool-card .card-icon {
+            font-size: 3rem;
+            margin-bottom: 12px;
+            transition: transform 0.3s;
+        }
+        .tool-card:hover .card-icon {
+            transform: scale(1.1);
+        }
+        .tool-card h3 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .tool-card .card-desc {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 14px;
+        }
+        .tool-card .card-tags {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .tool-card .tag {
+            font-size: 0.65rem;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .footer {
+            margin-top: 36px;
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            .header h1 { font-size: 1.5rem; }
+            .function-section { padding: 14px 16px; }
+            .cards-grid { grid-template-columns: 1fr; }
+            .btn-grid.cols-6 { grid-template-columns: repeat(3, 1fr); }
+            .btn-grid.cols-5 { grid-template-columns: repeat(3, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 主题切换 -->
+    <button class="theme-toggle" onclick="toggleTheme()">🌓 主题</button>
+
+    <!-- 标题 -->
+    <div class="header">
+        <div class="logo">🌐</div>
+        <h1>MathVisLab</h1>
+        <p class="subtitle">微积分几何可视化统一平台</p>
+    </div>
+
+    <!-- ==================== 函数区（含可折叠构建器） ==================== -->
+    <div class="function-section">
+        <!-- 精简栏（始终可见） -->
+        <div class="function-bar-compact">
+            <label for="exprDisplay">f(x) =</label>
+            <input
+                type="text"
+                class="expr-display"
+                id="exprDisplay"
+                value="sin(x)"
+                placeholder="点击输入或展开构建器..."
+                spellcheck="false"
+                onkeydown="if(event.key==='Enter')applyFunction()"
+            >
+            <button class="btn-apply" onclick="applyFunction()">应用</button>
+            <button class="btn-reset" onclick="resetFunction()">重置</button>
+            <button
+                class="btn-builder-toggle"
+                id="btnBuilderToggle"
+                onclick="toggleBuilder()"
+            >
+                🧮 构建器 <span class="arrow">▼</span>
+            </button>
+        </div>
+
+        <!-- 构建器（默认折叠） -->
+        <div class="function-builder" id="functionBuilder">
+            <!-- 🔢 常量 -->
+            <div class="builder-section">
+                <div class="builder-section-title"><span class="emoji">🔢</span> 常量与数字</div>
+                <div class="btn-grid cols-6">
+                    <button class="bld-btn btn-constant" onclick="insertAtCursor('7')">7</button>
+                    <button class="bld-btn btn-constant" onclick="insertAtCursor('8')">8</button>
+                    <button class="bld-btn btn-constant" onclick="insertAtCursor('9')">9</button>
+                    <button class="bld-btn btn-constant" onclick="insertAtCursor('4')">4</button>
+                    <button class="bld-btn btn-constant" onclick="insertAtCursor('5')">5</button>
+                    <button class="bld-btn btn-constant" onclick="insertAtCursor('6')">6</button>
+                    <button class="bld-btn btn-constant" onclick="insertAtCursor('1')">1</button>
+                    <button class="bld-btn btn-constant" onclick="insertAtCursor('2')">2</button>
+                    <button class="bld-btn btn-constant" onclick="insertAtCursor('3')">3</button>
+                    <button class="bld-btn btn-constant" onclick="insertAtCursor('0')">0</button>
+                    <button class="bld-btn btn-constant" onclick="insertAtCursor('.')">.</button>
+                    <button class="bld-btn btn-gold" onclick="insertAtCursor('pi')">π</button>
+                    <button class="bld-btn btn-gold" onclick="insertAtCursor('e')">e</button>
+                </div>
+            </div>
+
+            <!-- 📐 变量 -->
+            <div class="builder-section">
+                <div class="builder-section-title"><span class="emoji">📐</span> 变量</div>
+                <div class="btn-grid cols-4">
+                    <button class="bld-btn btn-variable" onclick="insertAtCursor('x')">x</button>
+                </div>
+            </div>
+
+            <!-- ⚡ 运算符 -->
+            <div class="builder-section">
+                <div class="builder-section-title"><span class="emoji">⚡</span> 运算符</div>
+                <div class="btn-grid cols-6">
+                    <button class="bld-btn btn-operator" onclick="insertAtCursor('+')">+</button>
+                    <button class="bld-btn btn-operator" onclick="insertAtCursor('-')">−</button>
+                    <button class="bld-btn btn-operator" onclick="insertAtCursor('*')">×</button>
+                    <button class="bld-btn btn-operator" onclick="insertAtCursor('/')">÷</button>
+                    <button class="bld-btn btn-operator" onclick="insertAtCursor('^')">^</button>
+                    <button class="bld-btn btn-operator" onclick="insertAtCursor('(')">(</button>
+                    <button class="bld-btn btn-operator" onclick="insertAtCursor(')')">)</button>
+                </div>
+            </div>
+
+            <!-- 📏 三角函数 -->
+            <div class="builder-section">
+                <div class="builder-section-title"><span class="emoji">📏</span> 三角函数</div>
+                <div class="btn-grid cols-6">
+                    <button class="bld-btn btn-trig" onclick="insertAtCursor('sin(')">sin</button>
+                    <button class="bld-btn btn-trig" onclick="insertAtCursor('cos(')">cos</button>
+                    <button class="bld-btn btn-trig" onclick="insertAtCursor('tan(')">tan</button>
+                    <button class="bld-btn btn-trig" onclick="insertAtCursor('asin(')">sin⁻¹</button>
+                    <button class="bld-btn btn-trig" onclick="insertAtCursor('acos(')">cos⁻¹</button>
+                    <button class="bld-btn btn-trig" onclick="insertAtCursor('atan(')">tan⁻¹</button>
+                </div>
+            </div>
+
+            <!-- 📊 指对函数 -->
+            <div class="builder-section">
+                <div class="builder-section-title"><span class="emoji">📊</span> 指对函数</div>
+                <div class="btn-grid cols-6">
+                    <button class="bld-btn btn-explog" onclick="insertAtCursor('exp(')">eˣ</button>
+                    <button class="bld-btn btn-explog" onclick="insertAtCursor('ln(')">ln</button>
+                    <button class="bld-btn btn-explog" onclick="insertAtCursor('log(')">lg</button>
+                    <button class="bld-btn btn-explog" onclick="insertAtCursor('^2')">x²</button>
+                    <button class="bld-btn btn-explog" onclick="insertAtCursor('^3')">x³</button>
+                    <button class="bld-btn btn-explog" onclick="insertAtCursor('sqrt(')">√</button>
+                    <button class="bld-btn btn-explog" onclick="insertAtCursor('cbrt(')">³√</button>
+                </div>
+            </div>
+
+            <!-- 🔧 其他 -->
+            <div class="builder-section">
+                <div class="builder-section-title"><span class="emoji">🔧</span> 其他函数</div>
+                <div class="btn-grid cols-4">
+                    <button class="bld-btn btn-other" onclick="insertAtCursor('abs(')">abs</button>
+                    <button class="bld-btn btn-other" onclick="insertAtCursor('1/(')">1/x</button>
+                    <button class="bld-btn btn-other" onclick="insertAtCursor('floor(')">floor</button>
+                    <button class="bld-btn btn-other" onclick="insertAtCursor('ceil(')">ceil</button>
+                </div>
+            </div>
+
+            <!-- 快速预设 -->
+            <div class="builder-section">
+                <div class="builder-section-title"><span class="emoji">⭐</span> 快速预设</div>
+                <div class="btn-grid cols-4">
+                    <button class="bld-btn btn-gold" onclick="setExpr('sin(x)')">sin(x)</button>
+                    <button class="bld-btn btn-gold" onclick="setExpr('cos(x)')">cos(x)</button>
+                    <button class="bld-btn btn-gold" onclick="setExpr('x^2')">x²</button>
+                    <button class="bld-btn btn-gold" onclick="setExpr('x^3-3*x')">x³−3x</button>
+                    <button class="bld-btn btn-gold" onclick="setExpr('exp(x)')">eˣ</button>
+                    <button class="bld-btn btn-gold" onclick="setExpr('ln(x)')">ln(x)</button>
+                    <button class="bld-btn btn-gold" onclick="setExpr('sqrt(x)')">√x</button>
+                    <button class="bld-btn btn-gold" onclick="setExpr('1/x')">1/x</button>
+                </div>
+            </div>
+
+            <!-- 控制按钮 -->
+            <div class="builder-controls">
+                <button class="btn-ac" onclick="clearExpr()">AC 清空</button>
+                <button class="btn-backspace" onclick="backspaceExpr()">⌫ 退格</button>
+                <button class="btn-apply-builder" onclick="applyFunction()">✓ 应用到此函数</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 同步状态 -->
+    <p class="sync-info" id="syncInfo">
+        <span class="dot green"></span> 当前函数已就绪，点击下方工具卡片进入可视化页面
+    </p>
+
+    <!-- ==================== 工具卡片 ==================== -->
+    <div class="cards-grid">
+        <a href="pages/tangent.html" class="tool-card card-tangent" onclick="passFunction(event)">
+            <div class="card-icon">📐</div>
+            <h3>切线斜率探索器</h3>
+            <p class="card-desc">拖拽红点沿曲线移动，实时观察切线变化与导数值。直观理解"导数即切线斜率"。</p>
+            <div class="card-tags">
+                <span class="tag">导数</span>
+                <span class="tag">切线</span>
+                <span class="tag">斜率</span>
+                <span class="tag">拖拽交互</span>
+            </div>
+        </a>
+
+        <a href="pages/integral.html" class="tool-card card-integral" onclick="passFunction(event)">
+            <div class="card-icon">∫</div>
+            <h3>定积分可视化工具</h3>
+            <p class="card-desc">调节矩形数量(1~100)，切换左/右/中点/梯形法则，观看黎曼和收敛到积分。</p>
+            <div class="card-tags">
+                <span class="tag">黎曼和</span>
+                <span class="tag">收敛</span>
+                <span class="tag">误差分析</span>
+                <span class="tag">动画</span>
+            </div>
+        </a>
+
+        <a href="pages/taylor.html" class="tool-card card-taylor" onclick="passFunction(event)">
+            <div class="card-icon">∞</div>
+            <h3>泰勒逼近演示器</h3>
+            <p class="card-desc">拖动阶数从0到15，看多项式如何逐阶逼近原函数。含误差热力图和收敛半径。</p>
+            <div class="card-tags">
+                <span class="tag">泰勒级数</span>
+                <span class="tag">多项式逼近</span>
+                <span class="tag">收敛</span>
+            </div>
+        </a>
+
+        <a href="pages/polar.html" class="tool-card card-polar" onclick="passFunction(event)">
+            <div class="card-icon">◎</div>
+            <h3>极坐标函数绘制器</h3>
+            <p class="card-desc">绘制玫瑰线、心形线、螺线的彩虹曲线。编织动画展示极坐标方程的生长过程。</p>
+            <div class="card-tags">
+                <span class="tag">极坐标</span>
+                <span class="tag">玫瑰线</span>
+                <span class="tag">心形线</span>
+                <span class="tag">编织动画</span>
+            </div>
+        </a>
+    </div>
+
+    <div class="footer">
+        <p>🛠 MathVisLab · 工科数学分析课程教学团队 · 2026</p>
+        <p style="margin-top:3px;">💡 提示：展开🧮构建器自由组合函数，点击工具卡片进入对应可视化页面</p>
+    </div>
+
+    <script>
+        // ==================== 状态管理 ====================
+        const STORAGE_KEY = 'mathvislab_global_function';
+        const DEFAULT_FUNCTION = 'sin(x)';
+        const exprDisplay = document.getElementById('exprDisplay');
+
+        // 初始化
+        exprDisplay.value = localStorage.getItem(STORAGE_KEY) || DEFAULT_FUNCTION;
+
+        // ==================== 构建器展开/折叠 ====================
+        let builderOpen = false;
+
+        function toggleBuilder() {
+            builderOpen = !builderOpen;
+            const builder = document.getElementById('functionBuilder');
+            const btn = document.getElementById('btnBuilderToggle');
+
+            if (builderOpen) {
+                builder.classList.add('open');
+                btn.classList.add('expanded');
+                btn.innerHTML = '🧮 收起构建器 <span class="arrow">▼</span>';
+            } else {
+                builder.classList.remove('open');
+                btn.classList.remove('expanded');
+                btn.innerHTML = '🧮 构建器 <span class="arrow">▼</span>';
+            }
+        }
+
+        // ==================== 在光标位置插入文本 ====================
+        function insertAtCursor(text) {
+            const input = exprDisplay;
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+            const current = input.value;
+
+            // 在光标处插入
+            const newValue = current.substring(0, start) + text + current.substring(end);
+            input.value = newValue;
+
+            // 移动光标到插入文本之后
+            const newCursorPos = start + text.length;
+            input.setSelectionRange(newCursorPos, newCursorPos);
+            input.focus();
+        }
+
+        // ==================== 设置整个表达式 ====================
+        function setExpr(expr) {
+            exprDisplay.value = expr;
+            exprDisplay.focus();
+        }
+
+        // ==================== 清空 ====================
+        function clearExpr() {
+            exprDisplay.value = '';
+            exprDisplay.focus();
+        }
+
+        // ==================== 智能退格 ====================
+        function backspaceExpr() {
+            const input = exprDisplay;
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+            const current = input.value;
+
+            // 有选中则删除选中
+            if (start !== end) {
+                input.value = current.substring(0, start) + current.substring(end);
+                input.setSelectionRange(start, start);
+                input.focus();
+                return;
+            }
+
+            // 检查末尾函数名
+            const before = current.substring(0, start);
+            const patterns = [
+                'asin(', 'acos(', 'atan(', 'sinh(', 'cosh(',
+                'sin(', 'cos(', 'tan(',
+                'exp(', 'ln(', 'log(', 'abs(', 'sqrt(', 'cbrt(',
+                'floor(', 'ceil(', '1/('
+            ];
+            for (const p of patterns) {
+                if (before.endsWith(p)) {
+                    input.value = current.substring(0, start - p.length) + current.substring(start);
+                    input.setSelectionRange(start - p.length, start - p.length);
+                    input.focus();
+                    return;
+                }
+            }
+
+            // 普通退格
+            if (start > 0) {
+                input.value = current.substring(0, start - 1) + current.substring(start);
+                input.setSelectionRange(start - 1, start - 1);
+            }
+            input.focus();
+        }
+
+        // ==================== 验证并应用函数 ====================
+        function applyFunction() {
+            const expr = exprDisplay.value.trim();
+            if (!expr) {
+                alert('⚠️ 请输入函数表达式');
+                return;
+            }
+
+            // 验证
+            try {
+                const testExpr = expr
+                    .replace(/\^/g, '**')
+                    .replace(/sin/g, 'Math.sin')
+                    .replace(/cos/g, 'Math.cos')
+                    .replace(/tan/g, 'Math.tan')
+                    .replace(/asin/g, 'Math.asin')
+                    .replace(/acos/g, 'Math.acos')
+                    .replace(/atan/g, 'Math.atan')
+                    .replace(/exp/g, 'Math.exp')
+                    .replace(/ln/g, 'Math.log')
+                    .replace(/log/g, 'Math.log10')
+                    .replace(/sqrt/g, 'Math.sqrt')
+                    .replace(/cbrt/g, 'Math.cbrt')
+                    .replace(/abs/g, 'Math.abs')
+                    .replace(/floor/g, 'Math.floor')
+                    .replace(/ceil/g, 'Math.ceil')
+                    .replace(/pi/g, 'Math.PI')
+                    .replace(/(?<![a-zA-Z])e(?![a-zA-Z+\-^*\/()])/g, 'Math.E');
+                new Function('x', `return ${testExpr}`);
+            } catch (e) {
+                alert('⚠️ 函数表达式无效：\n\n' + e.message + '\n\n请检查语法后重试。');
+                return;
+            }
+
+            // 保存
+            localStorage.setItem(STORAGE_KEY, expr);
+            document.getElementById('syncInfo').innerHTML =
+                '<span class="dot green"></span> ✅ 函数已更新：f(x) = ' + expr + ' — 点击工具卡片进入可视化';
+        }
+
+        function resetFunction() {
+            exprDisplay.value = DEFAULT_FUNCTION;
+            localStorage.setItem(STORAGE_KEY, DEFAULT_FUNCTION);
+            document.getElementById('syncInfo').innerHTML =
+                '<span class="dot green"></span> ✅ 已重置为默认函数：f(x) = ' + DEFAULT_FUNCTION;
+        }
+
+        // ==================== 点击卡片时传递函数参数 ====================
+        function passFunction(event) {
+            const expr = localStorage.getItem(STORAGE_KEY) || DEFAULT_FUNCTION;
+            const link = event.currentTarget;
+            const originalHref = link.getAttribute('href');
+            link.href = originalHref + '?func=' + encodeURIComponent(expr);
+        }
+
+        // ==================== 主题切换 ====================
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme');
+            const next = current === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('mathvislab_theme', next);
+        }
+
+        const savedTheme = localStorage.getItem('mathvislab_theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+
+        // ==================== 暴露全局函数 ====================
+        window.toggleBuilder = toggleBuilder;
+        window.insertAtCursor = insertAtCursor;
+        window.setExpr = setExpr;
+        window.clearExpr = clearExpr;
+        window.backspaceExpr = backspaceExpr;
+        window.applyFunction = applyFunction;
+        window.resetFunction = resetFunction;
+        window.toggleTheme = toggleTheme;
+        window.passFunction = passFunction;
+
+        console.log('🌐 MathVisLab 主页已就绪');
+        console.log('  当前函数:', localStorage.getItem(STORAGE_KEY) || DEFAULT_FUNCTION);
+        console.log('  点击 🧮构建器 展开函数构建面板');
+    </script>
+
+</body>
+</html>
