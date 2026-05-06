@@ -352,6 +352,7 @@
         .tool-card.card-integral::before { background: var(--accent-orange); }
         .tool-card.card-taylor::before { background: var(--accent-purple); }
         .tool-card.card-polar::before { background: var(--accent-cyan); }
+        .tool-card.card-multivar::before { background: #48c9b0; }
 
         .tool-card .card-icon {
             font-size: 3rem;
@@ -401,7 +402,9 @@
             .btn-grid.cols-6 { grid-template-columns: repeat(3, 1fr); }
             .btn-grid.cols-5 { grid-template-columns: repeat(3, 1fr); }
         }
-    </style>
+    
+</style>
+    <script src="js/common.js"></script>
 </head>
 <body>
 
@@ -467,6 +470,7 @@
                 <div class="builder-section-title"><span class="emoji">📐</span> 变量</div>
                 <div class="btn-grid cols-4">
                     <button class="bld-btn btn-variable" onclick="insertAtCursor('x')">x</button>
+                    <button class="bld-btn btn-variable" onclick="insertAtCursor('y')">y</button>
                 </div>
             </div>
 
@@ -598,7 +602,19 @@
                 <span class="tag">心形线</span>
                 <span class="tag">编织动画</span>
             </div>
+                <a href="pages/multivar.html" class="tool-card card-multivar" onclick="passFunction(event)">
+            <div class="card-icon">🎨</div>
+            <h3>3D曲面绘制器</h3>
+            <p class="card-desc">鼠标拖拽旋转3D曲面，从任意角度观察二元函数 z=f(x,y) 的立体形状。</p>
+            <div class="card-tags">
+                <span class="tag">3D透视</span>
+                <span class="tag">旋转交互</span>
+                <span class="tag">二元函数</span>
+                <span class="tag">高度着色</span>
+            </div>
         </a>
+
+</a>
     </div>
 
     <div class="footer">
@@ -711,30 +727,20 @@
                 return;
             }
 
-            // 验证
-            try {
-                const testExpr = expr
-                    .replace(/\^/g, '**')
-                    .replace(/sin/g, 'Math.sin')
-                    .replace(/cos/g, 'Math.cos')
-                    .replace(/tan/g, 'Math.tan')
-                    .replace(/asin/g, 'Math.asin')
-                    .replace(/acos/g, 'Math.acos')
-                    .replace(/atan/g, 'Math.atan')
-                    .replace(/exp/g, 'Math.exp')
-                    .replace(/ln/g, 'Math.log')
-                    .replace(/log/g, 'Math.log10')
-                    .replace(/sqrt/g, 'Math.sqrt')
-                    .replace(/cbrt/g, 'Math.cbrt')
-                    .replace(/abs/g, 'Math.abs')
-                    .replace(/floor/g, 'Math.floor')
-                    .replace(/ceil/g, 'Math.ceil')
-                    .replace(/pi/g, 'Math.PI')
-                    .replace(/(?<![a-zA-Z])e(?![a-zA-Z+\-^*\/()])/g, 'Math.E');
-                new Function('x', `return ${testExpr}`);
-            } catch (e) {
-                alert('⚠️ 函数表达式无效：\n\n' + e.message + '\n\n请检查语法后重试。');
-                return;
+            // 验证（使用 Common 工具库统一验证）
+            if (typeof Common !== 'undefined' && Common.compileExpr) {
+                if (!Common.compileExpr(expr)) {
+                    alert('⚠️ 函数表达式无效：\n\n' + expr + '\n\n请检查语法后重试。');
+                    return;
+                }
+            } else {
+                // 降级：简单验证
+                try {
+                    new Function('x', 'return ' + expr.replace(/\^/g, '**'));
+                } catch (e) {
+                    alert('⚠️ 函数表达式无效：\n\n' + e.message + '\n\n请检查语法后重试。');
+                    return;
+                }
             }
 
             // 保存

@@ -6,7 +6,7 @@
     <title>极坐标函数绘制器 · Polar Curve Visualizer</title>
     <style>
         :root {
-            --bg: #080818;
+            --bg: #0b0b1a;
             --panel-bg: #12122a;
             --section-bg: #191935;
             --border: #282850;
@@ -27,11 +27,14 @@
             --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        [data-theme="light"] {
+            --bg: #f0f2f5; --panel-bg: #ffffff; --section-bg: #f8f9fc;
+            --border: #d8dce3; --text: #1a1a2e; --text-secondary: #666680;
+            --btn-bg: #e8ecf1; --btn-hover: #d8dce3; --display-bg: #f5f6fa;
+            --graph-bg: #ffffff;
         }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
@@ -44,7 +47,6 @@
             user-select: none;
         }
 
-        /* ========== 顶部标题栏 ========== */
         .header {
             padding: 8px 18px;
             background: rgba(0, 0, 0, 0.5);
@@ -56,1485 +58,986 @@
             z-index: 10;
             flex-shrink: 0;
         }
-        .header .logo {
-            font-size: 1.15rem;
-            font-weight: 700;
-            color: var(--accent-gold);
-            letter-spacing: 1px;
+        .header .logo { font-size: 1.15rem; font-weight: 700; color: var(--accent-gold); letter-spacing: 1px; }
+        .header .subtitle { font-size: 0.75rem; color: var(--text-secondary); margin-left: 10px; }
+        .header-links { display: flex; gap: 12px; align-items: center; }
+        .header-links a { color: var(--accent-blue); text-decoration: none; font-size: 0.78rem; cursor: pointer; transition: color 0.2s; }
+        .header-links a:hover { color: var(--text); }
+        .theme-toggle {
+            padding: 5px 10px; border: 1px solid var(--border); border-radius: 16px;
+            background: var(--card-bg, var(--panel-bg)); color: var(--text);
+            cursor: pointer; font-size: 0.75rem; transition: all 0.2s; white-space: nowrap;
         }
-        .header .subtitle {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            margin-left: 10px;
-        }
-        .header-links {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-        .header-links a {
-            color: var(--accent-blue);
-            text-decoration: none;
-            font-size: 0.78rem;
-            cursor: pointer;
-            transition: color 0.2s;
-        }
-        .header-links a:hover {
-            color: #fff;
-        }
+        .theme-toggle:hover { border-color: var(--accent-blue); }
 
-        /* ========== 主体布局 ========== */
-        .main-layout {
-            display: flex;
-            flex: 1;
-            gap: 10px;
-            padding: 10px;
-            overflow: hidden;
-            min-height: 0;
-        }
+        .main-layout { display: flex; flex: 1; gap: 10px; padding: 10px; overflow: hidden; min-height: 0; }
 
-        /* ========== 中间：双视图区 ========== */
-        .views-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            min-width: 0;
-        }
+        .views-container { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
         .polar-view {
-            flex: 1;
-            background: var(--graph-bg);
-            border-radius: 14px;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-            border: 1px solid var(--border);
-            cursor: crosshair;
+            flex: 1; background: var(--graph-bg); border-radius: 14px;
+            position: relative; overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); border: 1px solid var(--border); cursor: crosshair;
         }
-        #polarCanvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
+        #polarCanvas { display: block; width: 100%; height: 100%; }
         .theta-r-view {
-            height: 180px;
-            background: var(--graph-bg);
-            border-radius: 14px;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-            border: 1px solid var(--border);
-            flex-shrink: 0;
+            height: 180px; background: var(--graph-bg); border-radius: 14px;
+            position: relative; overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); border: 1px solid var(--border); flex-shrink: 0;
         }
-        #thetaRCanvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
+        #thetaRCanvas { display: block; width: 100%; height: 100%; }
 
-        /* 浮动信息 */
-        .canvas-overlay {
-            position: absolute;
-            pointer-events: none;
-        }
-        .overlay-top-left {
-            top: 10px;
-            left: 14px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 5px 12px;
-            border-radius: 6px;
-            font-family: var(--mono);
-            font-size: 0.75rem;
-            color: var(--accent-cyan);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .overlay-top-right {
-            top: 10px;
-            right: 14px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 5px 12px;
-            border-radius: 6px;
-            font-family: var(--mono);
-            font-size: 0.8rem;
-            color: var(--accent-gold);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .overlay-bottom-left {
-            bottom: 10px;
-            left: 14px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 5px 12px;
-            border-radius: 6px;
-            font-family: var(--mono);
-            font-size: 0.7rem;
-            color: #aaa;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            line-height: 1.5;
-        }
-        .hint-bar {
-            position: absolute;
-            bottom: 8px;
-            right: 12px;
-            color: #444;
-            font-size: 0.65rem;
-            pointer-events: none;
-        }
+        .canvas-overlay { position: absolute; pointer-events: none; }
+        .overlay-top-left { top: 10px; left: 14px; background: rgba(0, 0, 0, 0.7); padding: 5px 12px; border-radius: 6px; font-family: var(--mono); font-size: 0.75rem; color: var(--accent-cyan); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .overlay-top-right { top: 10px; right: 14px; background: rgba(0, 0, 0, 0.7); padding: 5px 12px; border-radius: 6px; font-family: var(--mono); font-size: 0.8rem; color: var(--accent-gold); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .overlay-bottom-left { bottom: 10px; left: 14px; background: rgba(0, 0, 0, 0.7); padding: 5px 12px; border-radius: 6px; font-family: var(--mono); font-size: 0.7rem; color: #aaa; border: 1px solid rgba(255, 255, 255, 0.1); line-height: 1.5; }
+        .hint-bar { position: absolute; bottom: 8px; right: 12px; color: #444; font-size: 0.65rem; pointer-events: none; }
 
-        /* ========== 右侧控制面板 ========== */
         .control-panel {
-            width: 340px;
-            min-width: 340px;
-            background: var(--panel-bg);
-            border-radius: 14px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            padding: 10px;
-            overflow-y: auto;
-            scrollbar-width: thin;
-            scrollbar-color: var(--border) transparent;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-            border: 1px solid var(--border);
+            width: 340px; min-width: 340px; background: var(--panel-bg); border-radius: 14px;
+            display: flex; flex-direction: column; gap: 8px; padding: 10px;
+            overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); border: 1px solid var(--border);
         }
-        .control-panel::-webkit-scrollbar {
-            width: 5px;
-        }
-        .control-panel::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .control-panel::-webkit-scrollbar-thumb {
-            background: var(--border);
-            border-radius: 10px;
-        }
+        .control-panel::-webkit-scrollbar { width: 5px; }
+        .control-panel::-webkit-scrollbar-track { background: transparent; }
+        .control-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
 
-        .section {
-            background: var(--section-bg);
-            border: 1px solid var(--border);
-            border-radius: 9px;
-            padding: 8px 10px;
-            flex-shrink: 0;
-        }
-        .section-title {
-            font-size: 0.72rem;
-            font-weight: 700;
-            color: var(--accent-orange);
-            margin-bottom: 7px;
-            letter-spacing: 1px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
+        .section { background: var(--section-bg); border: 1px solid var(--border); border-radius: 9px; padding: 8px 10px; flex-shrink: 0; }
+        .section-title { font-size: 0.72rem; font-weight: 700; color: var(--accent-orange); margin-bottom: 7px; letter-spacing: 1px; display: flex; align-items: center; gap: 5px; }
 
-        /* 预设卡片 */
-        .preset-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 5px;
-        }
+        .preset-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
         .preset-card {
-            background: var(--btn-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 8px 5px;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.15s;
-            font-size: 0.65rem;
+            background: var(--btn-bg); border: 1px solid var(--border); border-radius: 8px;
+            padding: 8px 5px; cursor: pointer; text-align: center; transition: all 0.15s; font-size: 0.65rem;
         }
-        .preset-card:hover {
-            background: var(--btn-hover);
-            border-color: var(--accent-blue);
-            transform: translateY(-2px);
-        }
-        .preset-card.active {
-            border-color: var(--accent-gold);
-            background: #2a2a20;
-            box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
-        }
-        .preset-card .preset-icon {
-            font-size: 1.5rem;
-            margin-bottom: 2px;
-        }
-        .preset-card .preset-name {
-            font-weight: 600;
-            color: var(--text);
-        }
-        .preset-card .preset-eq {
-            font-family: var(--mono);
-            color: var(--text-secondary);
-            font-size: 0.6rem;
-        }
+        .preset-card:hover { background: var(--btn-hover); border-color: var(--accent-blue); transform: translateY(-2px); }
+        .preset-card.active { border-color: var(--accent-gold); background: #2a2a20; box-shadow: 0 0 8px rgba(255, 215, 0, 0.3); }
+        .preset-card .preset-icon { font-size: 1.5rem; margin-bottom: 2px; }
+        .preset-card .preset-name { font-weight: 600; color: var(--text); }
+        .preset-card .preset-eq { font-family: var(--mono); color: var(--text-secondary); font-size: 0.6rem; }
 
-        /* 自定义输入 */
-        .input-row {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-            margin-bottom: 4px;
-        }
-        .input-row label {
-            font-size: 0.68rem;
-            color: var(--text-secondary);
-            white-space: nowrap;
-            min-width: 40px;
-        }
-        .input-row input {
-            flex: 1;
-            background: var(--display-bg);
-            border: 1px solid var(--border);
-            border-radius: 5px;
-            padding: 5px 8px;
-            color: #fff;
-            font-family: var(--mono);
-            font-size: 0.72rem;
-            outline: none;
-        }
-        .input-row input:focus {
-            border-color: var(--accent-blue);
-        }
-        .syntax-status {
-            font-size: 0.62rem;
-            margin-top: 2px;
-            min-height: 14px;
-        }
-        .syntax-ok {
-            color: var(--accent-green);
-        }
-        .syntax-err {
-            color: var(--accent-red);
-        }
+        .input-row { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+        .input-row label { font-size: 0.68rem; color: var(--text-secondary); white-space: nowrap; min-width: 40px; }
+        .input-row input { flex: 1; background: var(--display-bg); border: 1px solid var(--border); border-radius: 5px; padding: 5px 8px; color: var(--text); font-family: var(--mono); font-size: 0.72rem; outline: none; }
+        .input-row input:focus { border-color: var(--accent-blue); }
+        .syntax-status { font-size: 0.62rem; margin-top: 2px; min-height: 14px; }
+        .syntax-ok { color: var(--accent-green); }
+        .syntax-err { color: var(--accent-red); }
 
-        /* 参数滑块 */
-        .slider-group {
-            margin-bottom: 4px;
-        }
-        .slider-group label {
-            font-size: 0.68rem;
-            color: var(--text-secondary);
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 2px;
-        }
-        .slider-group input[type="range"] {
-            width: 100%;
-            accent-color: var(--accent-gold);
-            cursor: pointer;
-        }
+        .slider-group { margin-bottom: 4px; }
+        .slider-group label { font-size: 0.68rem; color: var(--text-secondary); display: flex; justify-content: space-between; margin-bottom: 2px; }
+        .slider-group input[type="range"] { width: 100%; accent-color: var(--accent-gold); cursor: pointer; }
 
-        /* 按钮 */
-        .btn-row {
-            display: flex;
-            gap: 5px;
-            flex-wrap: wrap;
-        }
-        .btn {
-            padding: 6px 12px;
-            border-radius: 5px;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.7rem;
-            transition: all 0.15s;
-        }
-        .btn:hover {
-            filter: brightness(1.2);
-        }
-        .btn-animate {
-            background: var(--accent-green);
-            color: #000;
-        }
-        .btn-reset {
-            background: var(--accent-red);
-            color: #fff;
-        }
-        .btn-export {
-            background: var(--accent-orange);
-            color: #000;
-        }
-        .btn-csv {
-            background: var(--accent-purple);
-            color: #fff;
-        }
+        .btn-row { display: flex; gap: 5px; flex-wrap: wrap; }
+        .btn { padding: 6px 12px; border-radius: 5px; border: none; cursor: pointer; font-weight: 600; font-size: 0.7rem; transition: all 0.15s; }
+        .btn:hover { filter: brightness(1.2); }
+        .btn-animate { background: var(--accent-green); color: #000; }
+        .btn-reset { background: var(--accent-red); color: var(--text); }
+        .btn-export { background: var(--accent-orange); color: #000; }
+        .btn-csv { background: var(--accent-purple); color: var(--text); }
 
-        /* 仪表盘 */
-        .dashboard {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 4px;
-        }
-        .dash-item {
-            background: var(--display-bg);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 6px 8px;
-            text-align: center;
-        }
-        .dash-item.full {
-            grid-column: 1 / -1;
-        }
-        .dash-label {
-            font-size: 0.58rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .dash-value {
-            font-family: var(--mono);
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: #fff;
-        }
-        .dash-gold {
-            color: var(--accent-gold);
-        }
-        .dash-cyan {
-            color: var(--accent-cyan);
-        }
+        .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+        .dash-item { background: var(--display-bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; text-align: center; }
+        .dash-item.full { grid-column: 1 / -1; }
+        .dash-label { font-size: 0.58rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+        .dash-value { font-family: var(--mono); font-size: 0.85rem; font-weight: 700; color: var(--text); }
+        .dash-gold { color: var(--accent-gold); }
+        .dash-cyan { color: var(--accent-cyan); }
 
-        /* 粒子开关 */
-        .checkbox-row {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            font-size: 0.68rem;
-            color: var(--text-secondary);
-        }
-        .checkbox-row input {
-            accent-color: var(--accent-blue);
-        }
+        .checkbox-row { display: flex; gap: 10px; align-items: center; font-size: 0.68rem; color: var(--text-secondary); }
+        .checkbox-row input { accent-color: var(--accent-blue); }
 
         @media (max-width: 900px) {
-            .main-layout {
-                flex-direction: column;
-            }
-            .control-panel {
-                width: 100%;
-                min-width: unset;
-                max-height: 35vh;
-            }
-            .views-container {
-                min-height: 350px;
-            }
+            .main-layout { flex-direction: column; }
+            .control-panel { width: 100%; min-width: unset; max-height: 35vh; }
+            .views-container { min-height: 350px; }
         }
     </style>
+    <script src="../js/common.js"></script>
 </head>
 <body>
 
-    <!-- 顶部标题栏 -->
-    <div class="header">
-        <div>
-            <span class="logo">🌀 极坐标函数绘制器</span>
-            <span class="subtitle">Polar Curve Visualizer · 玫瑰线 · 心形线 · 螺线</span>
+<div class="header">
+    <div>
+        <span class="logo">🌀 极坐标函数绘制器</span>
+        <span class="subtitle">Polar Curve Visualizer · 玫瑰线 · 心形线 · 螺线</span>
+    </div>
+    <div class="header-links">
+        <a onclick="resetView()">🔄 重置视口</a>
+        <a onclick="exportImage()">📸 导出图片</a>
+        <a onclick="exportCSV()">📋 导出CSV</a>
+        <a onclick="showHelp()">❓ 帮助</a>
+    
+        <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
+    </div>
+</div>
+
+<div class="main-layout">
+    <div class="views-container">
+        <div class="polar-view" id="polarContainer">
+            <canvas id="polarCanvas"></canvas>
+            <div class="canvas-overlay overlay-top-left" id="polarOverlay">r = cos(2θ)</div>
+            <div class="canvas-overlay overlay-top-right" id="angleOverlay">θ = 0°</div>
+            <div class="canvas-overlay overlay-bottom-left" id="coordInfo">r = —<br>x = —<br>y = —</div>
+            <div class="hint-bar">🖱️ 拖拽探针 | 滚轮缩放 | 右键平移</div>
         </div>
-        <div class="header-links">
-            <a onclick="resetView()">🔄 重置视口</a>
-            <a onclick="exportImage()">📸 导出图片</a>
-            <a onclick="exportCSV()">📋 导出CSV</a>
-            <a onclick="showHelp()">❓ 帮助</a>
+        <div class="theta-r-view" id="thetaRContainer">
+            <canvas id="thetaRCanvas"></canvas>
+            <div class="canvas-overlay overlay-top-left" style="font-size:0.65rem;">θ-r 辅助视图</div>
         </div>
     </div>
 
-    <!-- 主体 -->
-    <div class="main-layout">
-
-        <!-- ========== 双视图区 ========== -->
-        <div class="views-container">
-            <!-- 极坐标主视图 -->
-            <div class="polar-view" id="polarContainer">
-                <canvas id="polarCanvas"></canvas>
-                <div class="canvas-overlay overlay-top-left" id="polarOverlay">r = cos(2θ)</div>
-                <div class="canvas-overlay overlay-top-right" id="angleOverlay">θ = 0°</div>
-                <div class="canvas-overlay overlay-bottom-left" id="coordInfo">
-                    r = —<br>x = —<br>y = —
-                </div>
-                <div class="hint-bar">🖱️ 拖拽探针 | 滚轮缩放 | 右键平移</div>
-            </div>
-            <!-- θ-r辅助视图 -->
-            <div class="theta-r-view" id="thetaRContainer">
-                <canvas id="thetaRCanvas"></canvas>
-                <div class="canvas-overlay overlay-top-left" style="font-size:0.65rem;">θ-r 辅助视图</div>
+    <div class="control-panel">
+        <div class="section">
+            <div class="section-title">📐 预设函数</div>
+            <div class="preset-grid" id="presetGrid">
+                <div class="preset-card active" data-preset="cos2"><div class="preset-icon">🌹</div><div class="preset-name">四叶玫瑰</div><div class="preset-eq">r=cos(2θ)</div></div>
+                <div class="preset-card" data-preset="cos3"><div class="preset-icon">🌺</div><div class="preset-name">三叶玫瑰</div><div class="preset-eq">r=cos(3θ)</div></div>
+                <div class="preset-card" data-preset="cos5"><div class="preset-icon">💮</div><div class="preset-name">五叶玫瑰</div><div class="preset-eq">r=cos(5θ)</div></div>
+                <div class="preset-card" data-preset="cardioid"><div class="preset-icon">❤️</div><div class="preset-name">心形线</div><div class="preset-eq">r=1+cos(θ)</div></div>
+                <div class="preset-card" data-preset="spiral"><div class="preset-icon">🌀</div><div class="preset-name">阿基米德螺线</div><div class="preset-eq">r=θ/3</div></div>
+                <div class="preset-card" data-preset="logspiral"><div class="preset-icon">🐚</div><div class="preset-name">对数螺线</div><div class="preset-eq">r=e^(θ/5)</div></div>
             </div>
         </div>
 
-        <!-- ========== 右侧控制面板 ========== -->
-        <div class="control-panel">
-
-            <!-- 📐 预设函数卡片 -->
-            <div class="section">
-                <div class="section-title">📐 预设函数</div>
-                <div class="preset-grid" id="presetGrid">
-                    <div class="preset-card active" data-preset="cos2">
-                        <div class="preset-icon">🌹</div>
-                        <div class="preset-name">四叶玫瑰</div>
-                        <div class="preset-eq">r=cos(2θ)</div>
-                    </div>
-                    <div class="preset-card" data-preset="cos3">
-                        <div class="preset-icon">🌺</div>
-                        <div class="preset-name">三叶玫瑰</div>
-                        <div class="preset-eq">r=cos(3θ)</div>
-                    </div>
-                    <div class="preset-card" data-preset="cos5">
-                        <div class="preset-icon">💮</div>
-                        <div class="preset-name">五叶玫瑰</div>
-                        <div class="preset-eq">r=cos(5θ)</div>
-                    </div>
-                    <div class="preset-card" data-preset="cardioid">
-                        <div class="preset-icon">❤️</div>
-                        <div class="preset-name">心形线</div>
-                        <div class="preset-eq">r=1+cos(θ)</div>
-                    </div>
-                    <div class="preset-card" data-preset="spiral">
-                        <div class="preset-icon">🌀</div>
-                        <div class="preset-name">阿基米德螺线</div>
-                        <div class="preset-eq">r=θ/3</div>
-                    </div>
-                    <div class="preset-card" data-preset="logspiral">
-                        <div class="preset-icon">🐚</div>
-                        <div class="preset-name">对数螺线</div>
-                        <div class="preset-eq">r=e^(θ/5)</div>
-                    </div>
-                </div>
+        <div class="section">
+            <div class="section-title">✏️ 自定义方程</div>
+            <div class="input-row">
+                <label>r =</label>
+                <input type="text" id="customEqInput" value="cos(k*theta)" spellcheck="false" oninput="onCustomInput()">
             </div>
-
-            <!-- ✏️ 自定义方程 -->
-            <div class="section">
-                <div class="section-title">✏️ 自定义方程</div>
-                <div class="input-row">
-                    <label>r =</label>
-                    <input type="text" id="customEqInput" value="cos(2*theta)" spellcheck="false" oninput="onCustomInput()">
-                </div>
-                <div class="syntax-status" id="syntaxStatus">✅ 有效方程</div>
-                <div class="input-row">
-                    <label>θ: </label>
-                    <input type="number" id="thetaStart" value="0" step="0.1" style="width:60px;" onchange="onParamChange()">
-                    <span style="color:var(--text-secondary);">→</span>
-                    <input type="number" id="thetaEnd" value="6.2832" step="0.1" style="width:60px;" onchange="onParamChange()">
-                </div>
+            <div class="syntax-status syntax-ok" id="syntaxStatus">✅ 有效方程</div>
+            <div class="input-row">
+                <label>θ: </label>
+                <input type="number" id="thetaStart" value="0" step="0.1" style="width:60px;" onchange="onParamChange()">
+                <span style="color:var(--text-secondary);">→</span>
+                <input type="number" id="thetaEnd" value="6.2832" step="0.1" style="width:60px;" onchange="onParamChange()">
             </div>
+        </div>
 
-            <!-- 🎚️ 参数滑块 -->
-            <div class="section">
-                <div class="section-title">🎚️ 曲线参数</div>
-                <div class="slider-group">
-                    <label>频率 k <span id="kValue">2.0</span></label>
-                    <input type="range" id="kSlider" min="0.5" max="10" value="2" step="0.1" oninput="onSliderChange()">
-                </div>
-                <div class="slider-group">
-                    <label>振幅 A <span id="aValue">1.0</span></label>
-                    <input type="range" id="aSlider" min="0.2" max="3" value="1" step="0.1" oninput="onSliderChange()">
-                </div>
-                <div class="slider-group">
-                    <label>相位 φ <span id="phiValue">0.0</span></label>
-                    <input type="range" id="phiSlider" min="0" max="6.2832" value="0" step="0.05" oninput="onSliderChange()">
-                </div>
+        <div class="section">
+            <div class="section-title">🎚️ 曲线参数</div>
+            <div class="slider-group"><label>频率 k <span id="kValue">2.0</span></label><input type="range" id="kSlider" min="0.5" max="10" value="2" step="0.1" oninput="onSliderChange()"></div>
+            <div class="slider-group"><label>振幅 A <span id="aValue">1.0</span></label><input type="range" id="aSlider" min="0.2" max="3" value="1" step="0.1" oninput="onSliderChange()"></div>
+            <div class="slider-group"><label>相位 φ <span id="phiValue">0.0</span></label><input type="range" id="phiSlider" min="0" max="6.2832" value="0" step="0.05" oninput="onSliderChange()"></div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">⚡ 显示选项</div>
+            <div class="checkbox-row"><input type="checkbox" id="chkGrid" checked onchange="draw()"><label>极坐标网格</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="chkRainbow" checked onchange="draw()"><label>彩虹渐变</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="chkParticles" onchange="draw()"><label>粒子流动</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="chkProbe" checked onchange="draw()"><label>角度探针</label></div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">🎬 编织动画</div>
+            <div class="btn-row">
+                <button class="btn btn-animate" id="btnWeave" onclick="toggleWeave()">▶ 编织演示</button>
+                <button class="btn btn-reset" onclick="resetWeave()">↺ 重置</button>
+                <button class="btn btn-export" onclick="exportImage()">📸 导出</button>
             </div>
-
-            <!-- ⚡ 显示选项 -->
-            <div class="section">
-                <div class="section-title">⚡ 显示选项</div>
-                <div class="checkbox-row">
-                    <input type="checkbox" id="chkGrid" checked onchange="draw()">
-                    <label>极坐标网格</label>
-                </div>
-                <div class="checkbox-row">
-                    <input type="checkbox" id="chkRainbow" checked onchange="draw()">
-                    <label>彩虹渐变</label>
-                </div>
-                <div class="checkbox-row">
-                    <input type="checkbox" id="chkParticles" onchange="draw()">
-                    <label>粒子流动</label>
-                </div>
-                <div class="checkbox-row">
-                    <input type="checkbox" id="chkProbe" checked onchange="draw()">
-                    <label>角度探针</label>
-                </div>
+            <div class="slider-group" style="margin-top:5px;">
+                <label>速度 <span id="speedValue">正常</span></label>
+                <input type="range" id="speedSlider" min="1" max="4" value="2" step="1" oninput="onSpeedChange()">
             </div>
+        </div>
 
-            <!-- 🎬 编织动画 -->
-            <div class="section">
-                <div class="section-title">🎬 编织动画</div>
-                <div class="btn-row">
-                    <button class="btn btn-animate" id="btnWeave" onclick="toggleWeave()">▶ 编织演示</button>
-                    <button class="btn btn-reset" onclick="resetWeave()">↺ 重置</button>
-                    <button class="btn btn-export" onclick="exportImage()">📸 导出</button>
-                </div>
-                <div class="slider-group" style="margin-top:5px;">
-                    <label>速度 <span id="speedValue">正常</span></label>
-                    <input type="range" id="speedSlider" min="1" max="4" value="2" step="1" oninput="onSpeedChange()">
-                </div>
+        <div class="section">
+            <div class="section-title">📊 实时数据</div>
+            <div class="dashboard">
+                <div class="dash-item"><div class="dash-label">曲线类型</div><div class="dash-value dash-gold" id="dashType">四叶玫瑰线</div></div>
+                <div class="dash-item"><div class="dash-label">花瓣/环数</div><div class="dash-value" id="dashPetals">4</div></div>
+                <div class="dash-item"><div class="dash-label">最大 r</div><div class="dash-value" id="dashMaxR">1.00</div></div>
+                <div class="dash-item"><div class="dash-label">探针 θ</div><div class="dash-value dash-cyan" id="dashTheta">0°</div></div>
+                <div class="dash-item full"><div class="dash-label">该角度 r 值</div><div class="dash-value" id="dashR">—</div></div>
             </div>
-
-            <!-- 📊 实时数据 -->
-            <div class="section">
-                <div class="section-title">📊 实时数据</div>
-                <div class="dashboard">
-                    <div class="dash-item">
-                        <div class="dash-label">曲线类型</div>
-                        <div class="dash-value dash-gold" id="dashType">四叶玫瑰线</div>
-                    </div>
-                    <div class="dash-item">
-                        <div class="dash-label">花瓣/环数</div>
-                        <div class="dash-value" id="dashPetals">4</div>
-                    </div>
-                    <div class="dash-item">
-                        <div class="dash-label">最大 r</div>
-                        <div class="dash-value" id="dashMaxR">1.00</div>
-                    </div>
-                    <div class="dash-item">
-                        <div class="dash-label">探针 θ</div>
-                        <div class="dash-value dash-cyan" id="dashTheta">0°</div>
-                    </div>
-                    <div class="dash-item full">
-                        <div class="dash-label">该角度 r 值</div>
-                        <div class="dash-value" id="dashR">—</div>
-                    </div>
-                </div>
-                <div class="dashboard" style="margin-top:4px;">
-                    <div class="dash-item">
-                        <div class="dash-label">曲线总长 L</div>
-                        <div class="dash-value" id="dashLength">—</div>
-                    </div>
-                    <div class="dash-item">
-                        <div class="dash-label">围成面积 A</div>
-                        <div class="dash-value" id="dashArea">—</div>
-                    </div>
-                </div>
+            <div class="dashboard" style="margin-top:4px;">
+                <div class="dash-item"><div class="dash-label">曲线总长 L</div><div class="dash-value" id="dashLength">—</div></div>
+                <div class="dash-item"><div class="dash-label">围成面积 A</div><div class="dash-value" id="dashArea">—</div></div>
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        (function() {
-            // ==================== DOM 引用 ====================
-            const polarCanvas = document.getElementById('polarCanvas');
-            const polarCtx = polarCanvas.getContext('2d');
-            const polarContainer = document.getElementById('polarContainer');
-            const thetaRCanvas = document.getElementById('thetaRCanvas');
-            const thetaRCtx = thetaRCanvas.getContext('2d');
-            const thetaRContainer = document.getElementById('thetaRContainer');
+<script>
+(function() {
 
-            const angleOverlay = document.getElementById('angleOverlay');
-            const coordInfo = document.getElementById('coordInfo');
-            const syntaxStatus = document.getElementById('syntaxStatus');
-            const customEqInput = document.getElementById('customEqInput');
-            const thetaStartInput = document.getElementById('thetaStart');
-            const thetaEndInput = document.getElementById('thetaEnd');
-            const kSlider = document.getElementById('kSlider');
-            const aSlider = document.getElementById('aSlider');
-            const phiSlider = document.getElementById('phiSlider');
-            const speedSlider = document.getElementById('speedSlider');
-            const btnWeave = document.getElementById('btnWeave');
-            const chkGrid = document.getElementById('chkGrid');
-            const chkRainbow = document.getElementById('chkRainbow');
-            const chkParticles = document.getElementById('chkParticles');
-            const chkProbe = document.getElementById('chkProbe');
+    // ==================== 主题切换 ====================
+    var savedTheme = localStorage.getItem("mathvislab_theme");
+    if (savedTheme) document.documentElement.setAttribute("data-theme", savedTheme);
+    window.toggleTheme = function() {
+        var html = document.documentElement;
+        var next = html.getAttribute("data-theme") === "light" ? "dark" : "light";
+        html.setAttribute("data-theme", next);
+        localStorage.setItem("mathvislab_theme", next);
+        if (typeof draw === "function") draw();
+        if (typeof drawGraph === "function") drawGraph();
+        if (typeof drawPolar === "function") { drawPolar(); drawThetaR(); }
+    };
 
-            // ==================== 状态变量 ====================
-            let currentPreset = 'cos2';
-            let customExpr = 'cos(2*theta)';
+    // ==================== DOM 引用 ====================
+    const polarCanvas = document.getElementById('polarCanvas');
+    const polarCtx = polarCanvas.getContext('2d');
+    const polarContainer = document.getElementById('polarContainer');
+    const thetaRCanvas = document.getElementById('thetaRCanvas');
+    const thetaRCtx = thetaRCanvas.getContext('2d');
+    const thetaRContainer = document.getElementById('thetaRContainer');
 
-            // ==================== 读取URL参数中的函数 ====================
-            (function() {
-                const urlParams = new URLSearchParams(window.location.search);
-                const passedFunc = urlParams.get('func');
-                if (passedFunc) {
-                    customExpr = decodeURIComponent(passedFunc);
-                    updateRFunc();
-                    // 更新输入框
-                    const customInput = document.getElementById('customEqInput');
-                    if (customInput) customInput.value = customExpr;
-                    // 更新预设卡片状态
-                    document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
-                    // 延迟重绘
-                    setTimeout(() => {
-                        autoFitView();
-                        draw();
-                    }, 300);
+    const angleOverlay = document.getElementById('angleOverlay');
+    const coordInfo = document.getElementById('coordInfo');
+    const syntaxStatus = document.getElementById('syntaxStatus');
+    const customEqInput = document.getElementById('customEqInput');
+    const thetaStartInput = document.getElementById('thetaStart');
+    const thetaEndInput = document.getElementById('thetaEnd');
+    const kSlider = document.getElementById('kSlider');
+    const aSlider = document.getElementById('aSlider');
+    const phiSlider = document.getElementById('phiSlider');
+    const speedSlider = document.getElementById('speedSlider');
+    const btnWeave = document.getElementById('btnWeave');
+    const chkGrid = document.getElementById('chkGrid');
+    const chkRainbow = document.getElementById('chkRainbow');
+    const chkParticles = document.getElementById('chkParticles');
+    const chkProbe = document.getElementById('chkProbe');
+
+    // ==================== 状态变量 ====================
+    let currentPreset = 'cos2';
+    let customExpr = 'cos(k*theta)';
+    let rFunc = null;
+    let thetaStart = 0;
+    let thetaEnd = 2 * Math.PI;
+    let paramK = 2;
+    let paramA = 1;
+    let paramPhi = 0;
+
+    let viewRange = 2.5;
+    let viewCX = 0;
+    let viewCY = 0;
+
+    let probeTheta = 0;
+    let draggingProbe = false;
+    let panning = false;
+    let panStart = null;
+
+    let isWeaving = false;
+    let weaveTheta = 0;
+    let weaveId = null;
+    let weaveSpeed = 2;
+
+    let particles = [];
+    const MAX_PARTICLES = 150;
+
+    // ==================== URL参数读取 ====================
+    (function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const passedFunc = urlParams.get('func');
+        if (passedFunc) {
+            customExpr = decodeURIComponent(passedFunc);
+            document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
+            currentPreset = 'custom';
+            setTimeout(() => {
+                updateRFunc();
+                updateUIFromState();
+                autoFitView();
+                draw();
+            }, 100);
+        }
+    })();
+
+    // ==================== 编译函数 ====================
+    function updateRFunc() {
+        console.log('[polar] 编译表达式:', customExpr);
+        rFunc = Common.compilePolarExpr(customExpr);
+        if (rFunc) {
+            try {
+                const testVal = rFunc(0.5, paramK, paramA, paramPhi);
+                console.log('[polar] 函数测试: r(0.5) =', testVal);
+                if (isNaN(testVal) || !isFinite(testVal)) {
+                    throw new Error('返回NaN或Infinity');
                 }
-            })();
-            let rFunc = null;
-            let thetaStart = 0;
-            let thetaEnd = 2 * Math.PI;
-            let paramK = 2;
-            let paramA = 1;
-            let paramPhi = 0;
-
-            // 视口（极坐标下的直角坐标范围）
-            let viewRange = 2.5;
-            let viewCX = 0;
-            let viewCY = 0;
-
-            // 探针
-            let probeTheta = 0;
-            let draggingProbe = false;
-            let panning = false;
-            let panStart = null;
-            let mouseOnPolar = false;
-            let mousePX = 0;
-            let mousePY = 0;
-
-            // 编织动画
-            let isWeaving = false;
-            let weaveTheta = 0;
-            let weaveId = null;
-            let weaveSpeed = 2; // 1-4
-
-            // 粒子
-            let particles = [];
-            const MAX_PARTICLES = 150;
-
-            // ==================== 表达式编译 ====================
-            function compilePolarExpr(expr) {
-                let processed = expr
-                    .replace(/\^/g, '**')
-                    .replace(/theta/g, '(theta)')
-                    .replace(/pi/g, '(Math.PI)')
-                    .replace(/(?<![a-zA-Z])e(?![a-zA-Z+\-^*\/()])/g, '(Math.E)')
-                    .replace(/abs/g, 'Math.abs')
-                    .replace(/sqrt/g, 'Math.sqrt')
-                    .replace(/cbrt/g, 'Math.cbrt')
-                    .replace(/sin/g, 'Math.sin')
-                    .replace(/cos/g, 'Math.cos')
-                    .replace(/tan/g, 'Math.tan')
-                    .replace(/exp/g, 'Math.exp')
-                    .replace(/ln/g, 'Math.log')
-                    .replace(/log/g, 'Math.log10');
-                try {
-                    return new Function('theta', 'k', 'A', 'phi',
-                        `try { return A*(${processed}); } catch(e) { return NaN; }`);
-                } catch (e) {
-                    return null;
-                }
+                syntaxStatus.textContent = '✅ 有效方程';
+                syntaxStatus.className = 'syntax-status syntax-ok';
+            } catch (e) {
+                console.error('[polar] 函数测试失败:', e);
+                syntaxStatus.textContent = '❌ 运行时错误';
+                syntaxStatus.className = 'syntax-status syntax-err';
+                rFunc = null;
             }
+        } else {
+            syntaxStatus.textContent = '❌ 语法错误';
+            syntaxStatus.className = 'syntax-status syntax-err';
+            console.error('[polar] 编译失败:', customExpr);
+        }
+    }
 
-            function updateRFunc() {
-                rFunc = compilePolarExpr(customExpr);
-                if (rFunc) {
-                    syntaxStatus.textContent = '✅ 有效方程';
-                    syntaxStatus.className = 'syntax-status syntax-ok';
-                } else {
-                    syntaxStatus.textContent = '❌ 语法错误';
-                    syntaxStatus.className = 'syntax-status syntax-err';
-                }
+    // ==================== 曲线生成 ====================
+    function generatePolarCurve(steps) {
+        steps = steps || 2000;
+        const points = [];
+        if (!rFunc) return points;
+        const dTheta = (thetaEnd - thetaStart) / steps;
+        for (let i = 0; i <= steps; i++) {
+            const theta = thetaStart + i * dTheta;
+            let r, valid = true;
+            try {
+                r = rFunc(theta, paramK, paramA, paramPhi);
+                if (isNaN(r) || !isFinite(r) || Math.abs(r) > 1e6) valid = false;
+            } catch (e) {
+                r = 0;
+                valid = false;
             }
+            const x = valid ? r * Math.cos(theta) : 0;
+            const y = valid ? r * Math.sin(theta) : 0;
+            points.push({ theta, r, x, y, valid });
+        }
+        return points;
+    }
 
-            // ==================== 曲线生成 ====================
-            function generatePolarCurve(steps = 2000) {
-                const points = [];
-                const dTheta = (thetaEnd - thetaStart) / steps;
-                for (let i = 0; i <= steps; i++) {
-                    const theta = thetaStart + i * dTheta;
-                    const r = rFunc ? rFunc(theta, paramK, paramA, paramPhi) : 0;
-                    const x = r * Math.cos(theta);
-                    const y = r * Math.sin(theta);
-                    points.push({ theta, r, x, y });
-                }
-                return points;
-            }
+    // ==================== 坐标转换 ====================
+    function getPolarRect() { return polarCanvas.getBoundingClientRect(); }
 
-            // ==================== 坐标转换（极坐标画布） ====================
-            function getPolarRect() {
-                return polarCanvas.getBoundingClientRect();
-            }
+    function polarToCanvas(mathX, mathY, W, H) {
+        const scale = Math.min(W, H) / (2 * viewRange);
+        const cx = W / 2 + viewCX * scale;
+        const cy = H / 2 - viewCY * scale;
+        return { x: cx + mathX * scale, y: cy - mathY * scale, scale: scale };
+    }
 
-            function polarToCanvas(mathX, mathY, W, H) {
-                const scale = Math.min(W, H) / (2 * viewRange);
-                const cx = W / 2 + viewCX * scale;
-                const cy = H / 2 - viewCY * scale;
-                return {
-                    x: cx + mathX * scale,
-                    y: cy - mathY * scale,
-                    scale: scale
-                };
-            }
+    function canvasToPolar(canvasX, canvasY, W, H) {
+        const scale = Math.min(W, H) / (2 * viewRange);
+        const cx = W / 2 + viewCX * scale;
+        const cy = H / 2 - viewCY * scale;
+        return { x: (canvasX - cx) / scale, y: (cy - canvasY) / scale };
+    }
 
-            function canvasToPolar(canvasX, canvasY, W, H) {
-                const scale = Math.min(W, H) / (2 * viewRange);
-                const cx = W / 2 + viewCX * scale;
-                const cy = H / 2 - viewCY * scale;
-                return {
-                    x: (canvasX - cx) / scale,
-                    y: (cy - canvasY) / scale
-                };
-            }
+    // ==================== 绘制极坐标视图 ====================
+    function drawPolar() {
+        const rect = getPolarRect();
+        const W = rect.width, H = rect.height;
+        const dpr = window.devicePixelRatio || 1;
 
-            // ==================== 绘制极坐标视图 ====================
-            function drawPolar() {
-                const rect = getPolarRect();
-                const W = rect.width;
-                const H = rect.height;
-                const dpr = window.devicePixelRatio || 1;
+        if (polarCanvas.width !== W * dpr || polarCanvas.height !== H * dpr) {
+            polarCanvas.width = W * dpr;
+            polarCanvas.height = H * dpr;
+            polarCanvas.style.width = W + 'px';
+            polarCanvas.style.height = H + 'px';
+            polarCtx.setTransform(1, 0, 0, 1, 0, 0);
+            polarCtx.scale(dpr, dpr);
+        }
 
-                if (polarCanvas.width !== W * dpr || polarCanvas.height !== H * dpr) {
-                    polarCanvas.width = W * dpr;
-                    polarCanvas.height = H * dpr;
-                    polarCanvas.style.width = W + 'px';
-                    polarCanvas.style.height = H + 'px';
-                    polarCtx.setTransform(1, 0, 0, 1, 0, 0);
-                    polarCtx.scale(dpr, dpr);
-                }
+        const ctx = polarCtx;
+        ctx.clearRect(0, 0, W, H);
+        var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        ctx.fillStyle = isLight ? '#ffffff' : '#0d1117';
+        ctx.fillRect(0, 0, W, H);
 
-                const ctx = polarCtx;
-                ctx.clearRect(0, 0, W, H);
-                ctx.fillStyle = '#0d1117';
-                ctx.fillRect(0, 0, W, H);
+        const curves = generatePolarCurve(isWeaving ? 500 : 2000);
 
-                const curves = generatePolarCurve(isWeaving ? 500 : 2000);
+        if (chkGrid.checked) drawPolarGrid(ctx, W, H);
 
-                // 极坐标网格
-                if (chkGrid.checked) {
-                    drawPolarGrid(ctx, W, H);
-                }
-
-                // 彩虹曲线
-                const rainbowMode = chkRainbow.checked;
-                if (isWeaving) {
-                    // 编织动画：只绘制到 weaveTheta
-                    drawPartialCurve(ctx, curves, weaveTheta, W, H, rainbowMode);
-                    // 发光前端
-                    const frontPt = getPointAtTheta(curves, weaveTheta);
-                    if (frontPt) {
-                        const pos = polarToCanvas(frontPt.x, frontPt.y, W, H);
-                        ctx.beginPath();
-                        ctx.fillStyle = '#ffd700';
-                        ctx.shadowColor = '#ffd700';
-                        ctx.shadowBlur = 16;
-                        ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.shadowBlur = 0;
-                    }
-                } else {
-                    drawFullCurve(ctx, curves, W, H, rainbowMode);
-                }
-
-                // 角度探针
-                if (chkProbe.checked && !isWeaving) {
-                    drawProbe(ctx, curves, W, H);
-                }
-
-                // 粒子流
-                if (chkParticles.checked && !isWeaving) {
-                    updateAndDrawParticles(ctx, curves, W, H);
-                }
-
-                // 极点标记
-                const origin = polarToCanvas(0, 0, W, H);
+        const rainbowMode = chkRainbow.checked;
+        if (isWeaving) {
+            drawPartialCurve(ctx, curves, weaveTheta, W, H, rainbowMode);
+            const frontPt = getPointAtTheta(curves, weaveTheta);
+            if (frontPt && frontPt.valid) {
+                const pos = polarToCanvas(frontPt.x, frontPt.y, W, H);
                 ctx.beginPath();
-                ctx.fillStyle = '#fff';
-                ctx.arc(origin.x, origin.y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffd700';
+                ctx.shadowColor = '#ffd700';
+                ctx.shadowBlur = 16;
+                ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
                 ctx.fill();
-
-                // 更新仪表盘
-                updateDashboard(curves);
+                ctx.shadowBlur = 0;
             }
+        } else {
+            drawFullCurve(ctx, curves, W, H, rainbowMode);
+        }
 
-            function drawPolarGrid(ctx, W, H) {
-                const origin = polarToCanvas(0, 0, W, H);
-                const scale = Math.min(W, H) / (2 * viewRange);
+        if (chkProbe.checked && !isWeaving) drawProbe(ctx, curves, W, H);
+        if (chkParticles.checked && !isWeaving) updateAnddrawParticles(ctx, curves, W, H);
 
-                // 同心圆
-                const maxR = viewRange * 1.5;
-                for (let r = 0.5; r <= maxR; r += 0.5) {
-                    const canvasR = r * scale;
-                    ctx.beginPath();
-                    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-                    ctx.lineWidth = 0.5;
-                    ctx.setLineDash([4, 6]);
-                    ctx.arc(origin.x, origin.y, canvasR, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-                    // 标签
-                    if (r <= viewRange + 0.1) {
-                        ctx.fillStyle = 'rgba(255,255,255,0.3)';
-                        ctx.font = '8px var(--mono)';
-                        ctx.fillText(r.toFixed(1), origin.x + canvasR + 3, origin.y - 3);
-                    }
-                }
+        const origin = polarToCanvas(0, 0, W, H);
+        ctx.beginPath();
+        ctx.fillStyle = '#fff';
+        ctx.arc(origin.x, origin.y, 3, 0, Math.PI * 2);
+        ctx.fill();
 
-                // 角度射线
-                const angles = [0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330];
-                const mainAngles = [0, 45, 90, 135, 180, 225, 270, 315];
-                const rayLen = maxR * scale;
+        updateDashboard(curves);
+    }
 
-                angles.forEach(ang => {
-                    const rad = ang * Math.PI / 180;
-                    const x2 = origin.x + rayLen * Math.cos(rad);
-                    const y2 = origin.y - rayLen * Math.sin(rad);
-                    const isMain = mainAngles.includes(ang);
-                    const isAxis = (ang === 0 || ang === 180);
+    function drawPolarGrid(ctx, W, H) {
+        var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        const origin = polarToCanvas(0, 0, W, H);
+        const scale = Math.min(W, H) / (2 * viewRange);
+        const maxR = viewRange * 1.5;
 
-                    ctx.beginPath();
-                    ctx.strokeStyle = isAxis ? 'rgba(255,255,255,0.3)' :
-                        isMain ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.06)';
-                    ctx.lineWidth = isMain ? 0.8 : 0.4;
-                    ctx.setLineDash(isAxis ? [] : [3, 8]);
-                    ctx.moveTo(origin.x, origin.y);
-                    ctx.lineTo(x2, y2);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-
-                    // 角度标签
-                    const labelR = rayLen + 12;
-                    const lx = origin.x + labelR * Math.cos(rad);
-                    const ly = origin.y - labelR * Math.sin(rad);
-                    ctx.fillStyle = 'rgba(255,255,255,0.35)';
-                    ctx.font = '8px var(--mono)';
-                    ctx.fillText(ang + '°', lx - 10, ly + 3);
-                });
+        for (let r = 0.5; r <= maxR; r += 0.5) {
+            const canvasR = r * scale;
+            ctx.beginPath();
+            ctx.strokeStyle = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)';
+            ctx.lineWidth = 0.5;
+            ctx.setLineDash([4, 6]);
+            ctx.arc(origin.x, origin.y, canvasR, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            if (r <= viewRange + 0.1) {
+                ctx.fillStyle = isLight ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.3)';
+                ctx.font = '8px "JetBrains Mono", monospace';
+                ctx.fillText(r.toFixed(1), origin.x + canvasR + 3, origin.y - 3);
             }
+        }
 
-            function drawFullCurve(ctx, curves, W, H, rainbow) {
-                if (curves.length < 2) return;
-                for (let i = 0; i < curves.length - 1; i++) {
-                    const p0 = curves[i];
-                    const p1 = curves[i + 1];
-                    if (!isFinite(p0.r) || !isFinite(p1.r)) continue;
-                    if (Math.abs(p0.r) > viewRange * 3 || Math.abs(p1.r) > viewRange * 3) continue;
+        const angles = [0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330];
+        const mainAngles = [0, 45, 90, 135, 180, 225, 270, 315];
+        const rayLen = maxR * scale;
 
-                    const pos0 = polarToCanvas(p0.x, p0.y, W, H);
-                    const pos1 = polarToCanvas(p1.x, p1.y, W, H);
+        angles.forEach(ang => {
+            const rad = ang * Math.PI / 180;
+            const x2 = origin.x + rayLen * Math.cos(rad);
+            const y2 = origin.y - rayLen * Math.sin(rad);
+            const isMain = mainAngles.includes(ang);
+            const isAxis = (ang === 0 || ang === 180);
 
-                    ctx.beginPath();
-                    ctx.lineWidth = rainbow ? 3 : 2.5;
-                    ctx.lineCap = 'round';
-                    if (rainbow) {
-                        const hue = (p0.theta / (2 * Math.PI)) * 360;
-                        ctx.strokeStyle = `hsl(${hue}, 90%, 60%)`;
-                        ctx.shadowColor = `hsl(${hue}, 90%, 60%)`;
-                        ctx.shadowBlur = 4;
-                    } else {
-                        ctx.strokeStyle = '#ffd700';
-                        ctx.shadowColor = '#ffd700';
-                        ctx.shadowBlur = 3;
-                    }
-                    ctx.moveTo(pos0.x, pos0.y);
-                    ctx.lineTo(pos1.x, pos1.y);
-                    ctx.stroke();
-                    ctx.shadowBlur = 0;
-                }
-            }
+            ctx.beginPath();
+            ctx.strokeStyle = isAxis ? (isLight ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.3)') : isMain ? (isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.15)') : (isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)');
+            ctx.lineWidth = isMain ? 0.8 : 0.4;
+            ctx.setLineDash(isAxis ? [] : [3, 8]);
+            ctx.moveTo(origin.x, origin.y);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            ctx.setLineDash([]);
 
-            function drawPartialCurve(ctx, curves, maxTheta, W, H, rainbow) {
-                if (curves.length < 2) return;
-                for (let i = 0; i < curves.length - 1; i++) {
-                    const p0 = curves[i];
-                    const p1 = curves[i + 1];
-                    if (p0.theta > maxTheta) break;
-                    if (!isFinite(p0.r) || !isFinite(p1.r)) continue;
-                    if (Math.abs(p0.r) > viewRange * 3 || Math.abs(p1.r) > viewRange * 3) continue;
+            const labelR = rayLen + 12;
+            const lx = origin.x + labelR * Math.cos(rad);
+            const ly = origin.y - labelR * Math.sin(rad);
+            ctx.fillStyle = isLight ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.35)';
+            ctx.font = '8px "JetBrains Mono", monospace';
+            ctx.fillText(ang + '°', lx - 10, ly + 3);
+        });
+    }
 
-                    const pos0 = polarToCanvas(p0.x, p0.y, W, H);
-                    const pos1 = polarToCanvas(p1.x, p1.y, W, H);
+    function drawFullCurve(ctx, curves, W, H, rainbow) {
+        if (!curves || curves.length < 2) return;
+        const margin = 100;
+        for (let i = 0; i < curves.length - 1; i++) {
+            const p0 = curves[i];
+            const p1 = curves[i + 1];
+            if (!p0.valid || !p1.valid) continue;
+            if (Math.abs(p0.r) > viewRange * 2.5 || Math.abs(p1.r) > viewRange * 2.5) continue;
 
-                    ctx.beginPath();
-                    ctx.lineWidth = 3;
-                    ctx.lineCap = 'round';
-                    if (rainbow) {
-                        const hue = (p0.theta / (2 * Math.PI)) * 360;
-                        ctx.strokeStyle = `hsl(${hue}, 90%, 60%)`;
-                        ctx.shadowColor = `hsl(${hue}, 90%, 60%)`;
-                        ctx.shadowBlur = 4;
-                    } else {
-                        ctx.strokeStyle = '#ffd700';
-                        ctx.shadowColor = '#ffd700';
-                        ctx.shadowBlur = 3;
-                    }
-                    ctx.moveTo(pos0.x, pos0.y);
-                    ctx.lineTo(pos1.x, pos1.y);
-                    ctx.stroke();
-                    ctx.shadowBlur = 0;
-                }
-            }
+            const pos0 = polarToCanvas(p0.x, p0.y, W, H);
+            const pos1 = polarToCanvas(p1.x, p1.y, W, H);
 
-            function getPointAtTheta(curves, targetTheta) {
-                for (let i = curves.length - 1; i >= 0; i--) {
-                    if (curves[i].theta <= targetTheta && isFinite(curves[i].r)) {
-                        return curves[i];
-                    }
-                }
-                return curves.length > 0 ? curves[0] : null;
-            }
+            if ((pos0.x < -margin && pos1.x < -margin) || 
+                (pos0.x > W + margin && pos1.x > W + margin) ||
+                (pos0.y < -margin && pos1.y < -margin) || 
+                (pos0.y > H + margin && pos1.y > H + margin)) continue;
 
-            function drawProbe(ctx, curves, W, H) {
-                const origin = polarToCanvas(0, 0, W, H);
-                const maxR = viewRange * 1.8;
-                const scale = Math.min(W, H) / (2 * viewRange);
+            ctx.beginPath();
+            ctx.lineWidth = rainbow ? 3 : 2.5;
+            ctx.lineCap = 'round';
 
-                // 探针射线
-                const rad = probeTheta;
-                const x2 = origin.x + maxR * scale * Math.cos(rad);
-                const y2 = origin.y - maxR * scale * Math.sin(rad);
-                ctx.beginPath();
-                ctx.strokeStyle = 'rgba(72,201,176,0.6)';
-                ctx.lineWidth = 1.5;
-                ctx.setLineDash([6, 4]);
-                ctx.moveTo(origin.x, origin.y);
-                ctx.lineTo(x2, y2);
-                ctx.stroke();
-                ctx.setLineDash([]);
-
-                // 交点
-                const pt = getPointAtTheta(curves, probeTheta);
-                if (pt && isFinite(pt.r)) {
-                    const pos = polarToCanvas(pt.x, pt.y, W, H);
-                    ctx.beginPath();
-                    ctx.fillStyle = '#48c9b0';
-                    ctx.shadowColor = '#48c9b0';
-                    ctx.shadowBlur = 14;
-                    ctx.arc(pos.x, pos.y, 7, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-                    ctx.strokeStyle = '#fff';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-
-                    // 手柄
-                    const handleDist = Math.min(pt.r * scale + 25, maxR * scale);
-                    const hx = origin.x + handleDist * Math.cos(rad);
-                    const hy = origin.y - handleDist * Math.sin(rad);
-                    ctx.beginPath();
-                    ctx.fillStyle = 'rgba(72,201,176,0.7)';
-                    ctx.arc(hx, hy, 10, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.strokeStyle = '#fff';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-
-                    // 数据
-                    angleOverlay.textContent = `θ = ${(probeTheta * 180 / Math.PI).toFixed(1)}°`;
-                    coordInfo.innerHTML =
-                        `r = ${pt.r.toFixed(3)}<br>x = ${pt.x.toFixed(3)}<br>y = ${pt.y.toFixed(3)}`;
-                }
-            }
-
-            // ==================== 粒子系统 ====================
-            function updateAndDrawParticles(ctx, curves, W, H) {
-                // 生成粒子
-                if (particles.length < MAX_PARTICLES && Math.random() < 0.3) {
-                    const theta = thetaStart + Math.random() * (thetaEnd - thetaStart);
-                    const r = rFunc ? rFunc(theta, paramK, paramA, paramPhi) : 0;
-                    if (isFinite(r) && Math.abs(r) < viewRange * 2) {
-                        const x = r * Math.cos(theta);
-                        const y = r * Math.sin(theta);
-                        particles.push({
-                            theta,
-                            x,
-                            y,
-                            life: 1,
-                            speed: 0.002 + Math.random() * 0.008
-                        });
-                    }
-                }
-
-                // 更新与绘制
-                for (let i = particles.length - 1; i >= 0; i--) {
-                    const p = particles[i];
-                    p.theta += p.speed;
-                    p.life -= 0.003;
-                    if (p.theta > thetaEnd || p.life <= 0) {
-                        particles.splice(i, 1);
-                        continue;
-                    }
-                    const r = rFunc ? rFunc(p.theta, paramK, paramA, paramPhi) : 0;
-                    if (isFinite(r)) {
-                        p.x = r * Math.cos(p.theta);
-                        p.y = r * Math.sin(p.theta);
-                    }
-                    const pos = polarToCanvas(p.x, p.y, W, H);
-                    ctx.beginPath();
-                    ctx.fillStyle = `rgba(255,215,0,${p.life})`;
-                    ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            }
-
-            // ==================== θ-r辅助视图 ====================
-            function drawThetaR() {
-                const rect = thetaRCanvas.getBoundingClientRect();
-                const W = rect.width;
-                const H = rect.height;
-                const dpr = window.devicePixelRatio || 1;
-
-                if (thetaRCanvas.width !== W * dpr || thetaRCanvas.height !== H * dpr) {
-                    thetaRCanvas.width = W * dpr;
-                    thetaRCanvas.height = H * dpr;
-                    thetaRCanvas.style.width = W + 'px';
-                    thetaRCanvas.style.height = H + 'px';
-                    thetaRCtx.setTransform(1, 0, 0, 1, 0, 0);
-                    thetaRCtx.scale(dpr, dpr);
-                }
-
-                const ctx = thetaRCtx;
-                ctx.clearRect(0, 0, W, H);
-                ctx.fillStyle = '#0a0a18';
-                ctx.fillRect(0, 0, W, H);
-
-                const pad = { top: 25, bottom: 20, left: 40, right: 15 };
-                const pw = W - pad.left - pad.right;
-                const ph = H - pad.top - pad.bottom;
-                const thetaMin = thetaStart;
-                const thetaMax = thetaEnd;
-                const rMin = -viewRange * 1.5;
-                const rMax = viewRange * 1.5;
-
-                // 坐标轴
-                ctx.strokeStyle = '#444';
-                ctx.lineWidth = 1;
-                const axisY = pad.top + ph / 2;
-                ctx.beginPath();
-                ctx.moveTo(pad.left, pad.top);
-                ctx.lineTo(pad.left, pad.top + ph);
-                ctx.moveTo(pad.left, axisY);
-                ctx.lineTo(pad.left + pw, axisY);
-                ctx.stroke();
-                ctx.fillStyle = '#888';
-                ctx.font = '9px var(--mono)';
-                ctx.fillText('θ', pad.left + pw - 12, axisY - 5);
-                ctx.fillText('r', pad.left + 4, pad.top + 10);
-
-                // 曲线
-                const steps = 500;
-                ctx.beginPath();
+            if (rainbow) {
+                const hue = ((p0.theta % (2 * Math.PI)) / (2 * Math.PI)) * 360;
+                ctx.strokeStyle = 'hsl(' + hue + ', 90%, 60%)';
+                ctx.shadowColor = 'hsl(' + hue + ', 90%, 60%)';
+                ctx.shadowBlur = 4;
+            } else {
                 ctx.strokeStyle = '#ffd700';
-                ctx.lineWidth = 1.5;
-                let first = true;
-                for (let i = 0; i <= steps; i++) {
-                    const theta = thetaMin + (thetaMax - thetaMin) * i / steps;
-                    const r = rFunc ? rFunc(theta, paramK, paramA, paramPhi) : 0;
-                    if (!isFinite(r)) { first = true; continue; }
-                    const px = pad.left + ((theta - thetaMin) / (thetaMax - thetaMin)) * pw;
-                    const py = pad.top + ph - ((r - rMin) / (rMax - rMin)) * ph;
-                    if (first) { ctx.moveTo(px, py);
-                        first = false; } else { ctx.lineTo(px, py); }
-                }
-                ctx.stroke();
-
-                // 探针位置
-                if (chkProbe.checked) {
-                    const pt = getPointAtTheta(generatePolarCurve(500), probeTheta);
-                    if (pt && isFinite(pt.r)) {
-                        const px = pad.left + ((probeTheta - thetaMin) / (thetaMax - thetaMin)) * pw;
-                        const py = pad.top + ph - ((pt.r - rMin) / (rMax - rMin)) * ph;
-                        ctx.beginPath();
-                        ctx.fillStyle = '#48c9b0';
-                        ctx.shadowColor = '#48c9b0';
-                        ctx.shadowBlur = 10;
-                        ctx.arc(px, py, 5, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.shadowBlur = 0;
-                    }
-                }
+                ctx.shadowColor = '#ffd700';
+                ctx.shadowBlur = 3;
             }
 
-            // ==================== 仪表盘 ====================
-            function updateDashboard(curves) {
-                const pt = getPointAtTheta(curves, probeTheta);
-                if (pt && isFinite(pt.r)) {
-                    document.getElementById('dashTheta').textContent = (probeTheta * 180 / Math.PI).toFixed(1) + '°';
-                    document.getElementById('dashR').textContent = pt.r.toFixed(4);
-                }
-                // 最大r
-                let maxR = 0;
-                curves.forEach(p => { if (isFinite(p.r)) maxR = Math.max(maxR, Math.abs(p.r)); });
-                document.getElementById('dashMaxR').textContent = maxR.toFixed(2);
+            ctx.moveTo(pos0.x, pos0.y);
+            ctx.lineTo(pos1.x, pos1.y);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+    }
 
-                // 花瓣数（对 cos(kθ) 形式）
-                if (currentPreset.startsWith('cos')) {
-                    const k = paramK;
-                    if (Math.abs(k - Math.round(k)) < 0.01) {
-                        const kInt = Math.round(k);
-                        const petals = kInt % 2 === 0 ? 2 * kInt : kInt;
-                        document.getElementById('dashPetals').textContent = petals;
-                        document.getElementById('dashType').textContent =
-                            kInt === 2 ? '四叶玫瑰线' :
-                            kInt === 3 ? '三叶玫瑰线' :
-                            kInt === 5 ? '五叶玫瑰线' : `${petals}叶玫瑰线`;
-                    } else {
-                        document.getElementById('dashPetals').textContent = '—';
-                        document.getElementById('dashType').textContent = '变形玫瑰线';
-                    }
-                } else if (currentPreset === 'cardioid') {
-                    document.getElementById('dashType').textContent = '心形线';
-                    document.getElementById('dashPetals').textContent = '1';
-                } else if (currentPreset === 'spiral') {
-                    document.getElementById('dashType').textContent = '阿基米德螺线';
-                    document.getElementById('dashPetals').textContent = '∞';
-                } else if (currentPreset === 'logspiral') {
-                    document.getElementById('dashType').textContent = '对数螺线';
-                    document.getElementById('dashPetals').textContent = '∞';
-                }
+    function drawPartialCurve(ctx, curves, maxTheta, W, H, rainbow) {
+        if (curves.length < 2) return;
+        for (let i = 0; i < curves.length - 1; i++) {
+            const p0 = curves[i];
+            const p1 = curves[i + 1];
+            if (p0.theta > maxTheta) break;
+            if (!p0.valid || !p1.valid) continue;
+            if (Math.abs(p0.r) > viewRange * 3 || Math.abs(p1.r) > viewRange * 3) continue;
 
-                // 曲线长度和面积（数值积分）
-                let length = 0;
-                let area = 0;
-                for (let i = 0; i < curves.length - 1; i++) {
-                    const p0 = curves[i];
-                    const p1 = curves[i + 1];
-                    if (!isFinite(p0.r) || !isFinite(p1.r)) continue;
-                    const dx = p1.x - p0.x;
-                    const dy = p1.y - p0.y;
-                    length += Math.sqrt(dx * dx + dy * dy);
-                    area += 0.5 * Math.abs(p0.r * p1.r) * (p1.theta - p0.theta);
-                }
-                document.getElementById('dashLength').textContent = length.toFixed(2);
-                document.getElementById('dashArea').textContent = area.toFixed(4);
+            const pos0 = polarToCanvas(p0.x, p0.y, W, H);
+            const pos1 = polarToCanvas(p1.x, p1.y, W, H);
+
+            ctx.beginPath();
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            if (rainbow) {
+                const hue = (p0.theta / (2 * Math.PI)) * 360;
+                ctx.strokeStyle = 'hsl(' + hue + ', 90%, 60%)';
+                ctx.shadowColor = 'hsl(' + hue + ', 90%, 60%)';
+                ctx.shadowBlur = 4;
+            } else {
+                ctx.strokeStyle = '#ffd700';
+                ctx.shadowColor = '#ffd700';
+                ctx.shadowBlur = 3;
             }
+            ctx.moveTo(pos0.x, pos0.y);
+            ctx.lineTo(pos1.x, pos1.y);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+    }
 
-            // ==================== 交互事件 ====================
-            polarCanvas.addEventListener('pointerdown', function(e) {
-                const rect = getPolarRect();
-                const W = rect.width;
-                const H = rect.height;
-                const mx = e.clientX - rect.left;
-                const my = e.clientY - rect.top;
+    function getPointAtTheta(curves, targetTheta) {
+        for (let i = curves.length - 1; i >= 0; i--) {
+            if (curves[i].theta <= targetTheta && curves[i].valid) return curves[i];
+        }
+        return curves.length > 0 ? curves[0] : null;
+    }
 
-                if (e.button === 2 || (e.button === 0 && e.ctrlKey)) {
-                    panning = true;
-                    panStart = { x: e.clientX, y: e.clientY, viewCX, viewCY, viewRange };
-                    polarCanvas.style.cursor = 'grabbing';
-                    e.preventDefault();
-                    return;
-                }
+    function drawProbe(ctx, curves, W, H) {
+        const origin = polarToCanvas(0, 0, W, H);
+        const maxR = viewRange * 1.8;
+        const scale = Math.min(W, H) / (2 * viewRange);
 
-                // 检查是否拖拽探针手柄
-                if (chkProbe.checked) {
-                    const origin = polarToCanvas(0, 0, W, H);
-                    const scale = Math.min(W, H) / (2 * viewRange);
-                    const pt = getPointAtTheta(generatePolarCurve(2000), probeTheta);
-                    const handleDist = pt && isFinite(pt.r) ? Math.min(pt.r * scale + 25, viewRange * 1.8 * scale) :
-                        viewRange * 1.5 * scale;
-                    const hx = origin.x + handleDist * Math.cos(probeTheta);
-                    const hy = origin.y - handleDist * Math.sin(probeTheta);
-                    if (Math.hypot(mx - hx, my - hy) < 16) {
-                        draggingProbe = true;
-                        polarCanvas.style.cursor = 'grabbing';
-                        e.preventDefault();
-                        return;
-                    }
-                }
+        const rad = probeTheta;
+        const x2 = origin.x + maxR * scale * Math.cos(rad);
+        const y2 = origin.y - maxR * scale * Math.sin(rad);
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(72,201,176,0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.moveTo(origin.x, origin.y);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.setLineDash([]);
 
-                // 更新探针角度
-                const polar = canvasToPolar(mx, my, W, H);
-                probeTheta = Math.atan2(-polar.y, polar.x);
-                if (probeTheta < 0) probeTheta += 2 * Math.PI;
-                draw();
-            });
+        const pt = getPointAtTheta(curves, probeTheta);
+        if (pt && pt.valid) {
+            const pos = polarToCanvas(pt.x, pt.y, W, H);
+            ctx.beginPath();
+            ctx.fillStyle = '#48c9b0';
+            ctx.shadowColor = '#48c9b0';
+            ctx.shadowBlur = 14;
+            ctx.arc(pos.x, pos.y, 7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
 
-            window.addEventListener('pointermove', function(e) {
-                if (draggingProbe) {
-                    const rect = getPolarRect();
-                    const W = rect.width;
-                    const H = rect.height;
-                    const mx = e.clientX - rect.left;
-                    const my = e.clientY - rect.top;
-                    const polar = canvasToPolar(mx, my, W, H);
-                    probeTheta = Math.atan2(-polar.y, polar.x);
-                    if (probeTheta < 0) probeTheta += 2 * Math.PI;
-                    draw();
-                    return;
-                }
-                if (panning && panStart) {
-                    const rect = getPolarRect();
-                    const W = rect.width;
-                    const H = rect.height;
-                    const scale = Math.min(W, H) / (2 * viewRange);
-                    const dx = (e.clientX - panStart.x) / scale;
-                    const dy = (e.clientY - panStart.y) / scale;
-                    viewCX = panStart.viewCX - dx;
-                    viewCY = panStart.viewCY + dy;
-                    draw();
-                    return;
-                }
-                if (polarCanvas.matches(':hover')) {
-                    mouseOnPolar = true;
-                    const rect = getPolarRect();
-                    mousePX = e.clientX - rect.left;
-                    mousePY = e.clientY - rect.top;
-                } else {
-                    mouseOnPolar = false;
-                }
-            });
+            const handleDist = Math.min(pt.r * scale + 25, maxR * scale);
+            const hx = origin.x + handleDist * Math.cos(rad);
+            const hy = origin.y - handleDist * Math.sin(rad);
+            ctx.beginPath();
+            ctx.fillStyle = 'rgba(72,201,176,0.7)';
+            ctx.arc(hx, hy, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
 
-            window.addEventListener('pointerup', function() {
-                draggingProbe = false;
-                panning = false;
-                panStart = null;
-                polarCanvas.style.cursor = 'crosshair';
-            });
+            angleOverlay.textContent = 'θ = ' + (probeTheta * 180 / Math.PI).toFixed(1) + '°';
+            coordInfo.innerHTML = 'r = ' + pt.r.toFixed(3) + '<br>x = ' + pt.x.toFixed(3) + '<br>y = ' + pt.y.toFixed(3);
+        }
+    }
 
-            polarCanvas.addEventListener('wheel', function(e) {
+    // ==================== 粒子系统 ====================
+    function updateAnddrawParticles(ctx, curves, W, H) {
+        if (particles.length < MAX_PARTICLES && Math.random() < 0.3) {
+            const theta = thetaStart + Math.random() * (thetaEnd - thetaStart);
+            const r = rFunc ? rFunc(theta, paramK, paramA, paramPhi) : 0;
+            if (isFinite(r) && Math.abs(r) < viewRange * 2) {
+                particles.push({ theta, x: r * Math.cos(theta), y: r * Math.sin(theta), life: 1, speed: 0.002 + Math.random() * 0.008 });
+            }
+        }
+
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.theta += p.speed;
+            p.life -= 0.003;
+            if (p.theta > thetaEnd || p.life <= 0) { particles.splice(i, 1); continue; }
+            const r = rFunc ? rFunc(p.theta, paramK, paramA, paramPhi) : 0;
+            if (isFinite(r)) { p.x = r * Math.cos(p.theta); p.y = r * Math.sin(p.theta); }
+            const pos = polarToCanvas(p.x, p.y, W, H);
+            ctx.beginPath();
+            ctx.fillStyle = 'rgba(255,215,0,' + p.life + ')';
+            ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // ==================== θ-r辅助视图 ====================
+    function drawThetaR() {
+        const rect = thetaRCanvas.getBoundingClientRect();
+        const W = rect.width, H = rect.height;
+        const dpr = window.devicePixelRatio || 1;
+
+        if (thetaRCanvas.width !== W * dpr || thetaRCanvas.height !== H * dpr) {
+            thetaRCanvas.width = W * dpr;
+            thetaRCanvas.height = H * dpr;
+            thetaRCanvas.style.width = W + 'px';
+            thetaRCanvas.style.height = H + 'px';
+            thetaRCtx.setTransform(1, 0, 0, 1, 0, 0);
+            thetaRCtx.scale(dpr, dpr);
+        }
+
+        const ctx = thetaRCtx;
+        ctx.clearRect(0, 0, W, H);
+        var isLight2 = document.documentElement.getAttribute('data-theme') === 'light';
+        ctx.fillStyle = isLight2 ? '#f0f0f0' : '#0a0a18';
+        ctx.fillRect(0, 0, W, H);
+
+        const pad = { top: 25, bottom: 20, left: 40, right: 15 };
+        const pw = W - pad.left - pad.right;
+        const ph = H - pad.top - pad.bottom;
+        const thetaMin = thetaStart, thetaMax = thetaEnd;
+        const rMin = -viewRange * 1.5, rMax = viewRange * 1.5;
+
+        ctx.strokeStyle = isLight2 ? '#ccc' : '#444';
+        ctx.lineWidth = 1;
+        const axisY = pad.top + ph / 2;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, pad.top);
+        ctx.lineTo(pad.left, pad.top + ph);
+        ctx.moveTo(pad.left, axisY);
+        ctx.lineTo(pad.left + pw, axisY);
+        ctx.stroke();
+        ctx.fillStyle = isLight2 ? '#666' : '#888';
+        ctx.font = '9px "JetBrains Mono", monospace';
+        ctx.fillText('θ', pad.left + pw - 12, axisY - 5);
+        ctx.fillText('r', pad.left + 4, pad.top + 10);
+
+        const steps = 500;
+        ctx.beginPath();
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 1.5;
+        let first = true;
+        for (let i = 0; i <= steps; i++) {
+            const theta = thetaMin + (thetaMax - thetaMin) * i / steps;
+            const r = rFunc ? rFunc(theta, paramK, paramA, paramPhi) : 0;
+            if (!isFinite(r)) { first = true; continue; }
+            const px = pad.left + ((theta - thetaMin) / (thetaMax - thetaMin)) * pw;
+            const py = pad.top + ph - ((r - rMin) / (rMax - rMin)) * ph;
+            if (first) { ctx.moveTo(px, py); first = false; } else { ctx.lineTo(px, py); }
+        }
+        ctx.stroke();
+
+        if (chkProbe.checked) {
+            const pt = getPointAtTheta(generatePolarCurve(500), probeTheta);
+            if (pt && pt.valid) {
+                const px = pad.left + ((probeTheta - thetaMin) / (thetaMax - thetaMin)) * pw;
+                const py = pad.top + ph - ((pt.r - rMin) / (rMax - rMin)) * ph;
+                ctx.beginPath();
+                ctx.fillStyle = '#48c9b0';
+                ctx.shadowColor = '#48c9b0';
+                ctx.shadowBlur = 10;
+                ctx.arc(px, py, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+    }
+
+    // ==================== 仪表盘 ====================
+    function updateDashboard(curves) {
+        const pt = getPointAtTheta(curves, probeTheta);
+        if (pt && pt.valid) {
+            document.getElementById('dashTheta').textContent = (probeTheta * 180 / Math.PI).toFixed(1) + '°';
+            document.getElementById('dashR').textContent = pt.r.toFixed(4);
+        }
+        let maxR = 0;
+        curves.forEach(p => { if (p.valid) maxR = Math.max(maxR, Math.abs(p.r)); });
+        document.getElementById('dashMaxR').textContent = maxR.toFixed(2);
+
+        if (currentPreset.startsWith('cos')) {
+            const k = paramK;
+            if (Math.abs(k - Math.round(k)) < 0.01) {
+                const kInt = Math.round(k);
+                const petals = kInt % 2 === 0 ? 2 * kInt : kInt;
+                document.getElementById('dashPetals').textContent = petals;
+                document.getElementById('dashType').textContent = kInt === 2 ? '四叶玫瑰线' : kInt === 3 ? '三叶玫瑰线' : kInt === 5 ? '五叶玫瑰线' : petals + '叶玫瑰线';
+            } else {
+                document.getElementById('dashPetals').textContent = '—';
+                document.getElementById('dashType').textContent = '变形玫瑰线';
+            }
+        } else if (currentPreset === 'cardioid') {
+            document.getElementById('dashType').textContent = '心形线';
+            document.getElementById('dashPetals').textContent = '1';
+        } else if (currentPreset === 'spiral') {
+            document.getElementById('dashType').textContent = '阿基米德螺线';
+            document.getElementById('dashPetals').textContent = '∞';
+        } else if (currentPreset === 'logspiral') {
+            document.getElementById('dashType').textContent = '对数螺线';
+            document.getElementById('dashPetals').textContent = '∞';
+        }
+
+        let length = 0, area = 0;
+        for (let i = 0; i < curves.length - 1; i++) {
+            const p0 = curves[i], p1 = curves[i + 1];
+            if (!p0.valid || !p1.valid) continue;
+            const dx = p1.x - p0.x, dy = p1.y - p0.y;
+            length += Math.sqrt(dx * dx + dy * dy);
+            area += 0.5 * Math.abs(p0.r * p1.r) * (p1.theta - p0.theta);
+        }
+        document.getElementById('dashLength').textContent = length.toFixed(2);
+        document.getElementById('dashArea').textContent = area.toFixed(4);
+    }
+
+    // ==================== 交互事件 ====================
+    polarCanvas.addEventListener('pointerdown', function(e) {
+        const rect = getPolarRect();
+        const W = rect.width, H = rect.height;
+        const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+
+        if (e.button === 2 || (e.button === 0 && e.ctrlKey)) {
+            panning = true;
+            panStart = { x: e.clientX, y: e.clientY, viewCX, viewCY, viewRange };
+            polarCanvas.style.cursor = 'grabbing';
+            e.preventDefault();
+            return;
+        }
+
+        if (chkProbe.checked) {
+            const origin = polarToCanvas(0, 0, W, H);
+            const scale = Math.min(W, H) / (2 * viewRange);
+            const pt = getPointAtTheta(generatePolarCurve(2000), probeTheta);
+            const handleDist = pt && pt.valid ? Math.min(pt.r * scale + 25, viewRange * 1.8 * scale) : viewRange * 1.5 * scale;
+            const hx = origin.x + handleDist * Math.cos(probeTheta);
+            const hy = origin.y - handleDist * Math.sin(probeTheta);
+            if (Math.hypot(mx - hx, my - hy) < 16) {
+                draggingProbe = true;
+                polarCanvas.style.cursor = 'grabbing';
                 e.preventDefault();
-                const factor = e.deltaY < 0 ? 0.88 : 1.12;
-                viewRange *= factor;
-                viewRange = Math.max(0.3, Math.min(20, viewRange));
-                draw();
-            }, { passive: false });
-
-            polarCanvas.addEventListener('contextmenu', e => e.preventDefault());
-
-            // ==================== 编织动画 ====================
-            function toggleWeave() {
-                if (isWeaving) {
-                    stopWeave();
-                    return;
-                }
-                isWeaving = true;
-                btnWeave.textContent = '⏸ 暂停';
-                weaveTheta = thetaStart;
-                animateWeave();
+                return;
             }
+        }
 
-            function animateWeave() {
-                if (!isWeaving) return;
-                const speeds = [0, 0.03, 0.06, 0.12, 0.25];
-                weaveTheta += speeds[weaveSpeed];
-                if (weaveTheta >= thetaEnd) {
-                    weaveTheta = thetaEnd;
-                    stopWeave();
-                    draw();
-                    return;
-                }
-                draw();
-                weaveId = requestAnimationFrame(animateWeave);
-            }
+        const polar = canvasToPolar(mx, my, W, H);
+        probeTheta = Math.atan2(-polar.y, polar.x);
+        if (probeTheta < 0) probeTheta += 2 * Math.PI;
+        draw();
+    });
 
-            function stopWeave() {
-                isWeaving = false;
-                btnWeave.textContent = '▶ 编织演示';
-                if (weaveId) cancelAnimationFrame(weaveId);
-                weaveTheta = thetaEnd;
-                draw();
-            }
+    window.addEventListener('pointermove', function(e) {
+        if (draggingProbe) {
+            const rect = getPolarRect();
+            const W = rect.width, H = rect.height;
+            const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+            const polar = canvasToPolar(mx, my, W, H);
+            probeTheta = Math.atan2(-polar.y, polar.x);
+            if (probeTheta < 0) probeTheta += 2 * Math.PI;
+            draw();
+            return;
+        }
+        if (panning && panStart) {
+            const rect = getPolarRect();
+            const W = rect.width, H = rect.height;
+            const scale = Math.min(W, H) / (2 * viewRange);
+            const dx = (e.clientX - panStart.x) / scale;
+            const dy = (e.clientY - panStart.y) / scale;
+            viewCX = panStart.viewCX - dx;
+            viewCY = panStart.viewCY + dy;
+            draw();
+            return;
+        }
+    });
 
-            function resetWeave() {
-                stopWeave();
-                weaveTheta = thetaStart;
-                draw();
-            }
+    window.addEventListener('pointerup', function() {
+        draggingProbe = false;
+        panning = false;
+        panStart = null;
+        polarCanvas.style.cursor = 'crosshair';
+    });
 
-            function onSpeedChange() {
-                weaveSpeed = parseInt(speedSlider.value);
-                const labels = ['', '慢速', '正常', '快速', '极速'];
-                document.getElementById('speedValue').textContent = labels[weaveSpeed];
-            }
+    polarCanvas.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        viewRange *= e.deltaY < 0 ? 0.88 : 1.12;
+        viewRange = Math.max(0.3, Math.min(20, viewRange));
+        draw();
+    }, { passive: false });
 
-            window.toggleWeave = toggleWeave;
-            window.resetWeave = resetWeave;
-            window.onSpeedChange = onSpeedChange;
+    polarCanvas.addEventListener('contextmenu', e => e.preventDefault());
 
-            // ==================== 参数更新 ====================
-            function applyPreset(preset) {
-                currentPreset = preset;
-                document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
-                const card = document.querySelector(`.preset-card[data-preset="${preset}"]`);
-                if (card) card.classList.add('active');
+    // ==================== 编织动画 ====================
+    function toggleWeave() {
+        if (isWeaving) { stopWeave(); return; }
+        isWeaving = true;
+        btnWeave.textContent = '⏸ 暂停';
+        weaveTheta = thetaStart;
+        animateWeave();
+    }
 
-                switch (preset) {
-                    case 'cos2':
-                        customExpr = 'cos(2*theta)';
-                        thetaStart = 0;
-                        thetaEnd = 2 * Math.PI;
-                        paramK = 2;
-                        paramA = 1;
-                        paramPhi = 0;
-                        break;
-                    case 'cos3':
-                        customExpr = 'cos(3*theta)';
-                        thetaStart = 0;
-                        thetaEnd = Math.PI;
-                        paramK = 3;
-                        paramA = 1;
-                        paramPhi = 0;
-                        break;
-                    case 'cos5':
-                        customExpr = 'cos(5*theta)';
-                        thetaStart = 0;
-                        thetaEnd = Math.PI;
-                        paramK = 5;
-                        paramA = 1;
-                        paramPhi = 0;
-                        break;
-                    case 'cardioid':
-                        customExpr = '1+cos(theta)';
-                        thetaStart = 0;
-                        thetaEnd = 2 * Math.PI;
-                        paramK = 1;
-                        paramA = 1;
-                        paramPhi = 0;
-                        break;
-                    case 'spiral':
-                        customExpr = 'theta/3';
-                        thetaStart = 0;
-                        thetaEnd = 4 * Math.PI;
-                        paramK = 1;
-                        paramA = 1;
-                        paramPhi = 0;
-                        break;
-                    case 'logspiral':
-                        customExpr = 'exp(theta/5)';
-                        thetaStart = 0;
-                        thetaEnd = 4 * Math.PI;
-                        paramK = 1;
-                        paramA = 1;
-                        paramPhi = 0;
-                        break;
-                }
-                updateUIFromState();
-                updateRFunc();
-                resetWeave();
-                autoFitView();
-                draw();
-            }
+    function animateWeave() {
+        if (!isWeaving) return;
+        const speeds = [0, 0.03, 0.06, 0.12, 0.25];
+        weaveTheta += speeds[weaveSpeed];
+        if (weaveTheta >= thetaEnd) { weaveTheta = thetaEnd; stopWeave(); draw(); return; }
+        draw();
+        weaveId = requestAnimationFrame(animateWeave);
+    }
 
-            function updateUIFromState() {
-                customEqInput.value = customExpr;
-                thetaStartInput.value = thetaStart.toFixed(4);
-                thetaEndInput.value = thetaEnd.toFixed(4);
-                kSlider.value = paramK;
-                aSlider.value = paramA;
-                phiSlider.value = paramPhi;
-                document.getElementById('kValue').textContent = paramK.toFixed(1);
-                document.getElementById('aValue').textContent = paramA.toFixed(1);
-                document.getElementById('phiValue').textContent = paramPhi.toFixed(2);
-                document.getElementById('polarOverlay').textContent = 'r = ' + customExpr
-                    .replace(/theta/g, 'θ')
-                    .replace(/\*/g, '')
-                    .replace(/exp\(θ\/5\)/g, 'e^(θ/5)');
-            }
+    function stopWeave() {
+        isWeaving = false;
+        btnWeave.textContent = '▶ 编织演示';
+        if (weaveId) cancelAnimationFrame(weaveId);
+        weaveTheta = thetaEnd;
+        draw();
+    }
 
-            function autoFitView() {
-                const curves = generatePolarCurve(2000);
-                let maxAbsR = 1;
-                curves.forEach(p => { if (isFinite(p.r)) maxAbsR = Math.max(maxAbsR, Math.abs(p.r)); });
-                viewRange = Math.max(1.2, maxAbsR * 1.3);
-                viewCX = 0;
-                viewCY = 0;
-            }
+    function resetWeave() { stopWeave(); weaveTheta = thetaStart; draw(); }
+    function onSpeedChange() {
+        weaveSpeed = parseInt(speedSlider.value);
+        document.getElementById('speedValue').textContent = ['', '慢速', '正常', '快速', '极速'][weaveSpeed];
+    }
 
-            function onCustomInput() {
-                customExpr = customEqInput.value;
-                updateRFunc();
-                updateUIFromState();
-                draw();
-            }
+    window.toggleWeave = toggleWeave;
+    window.resetWeave = resetWeave;
+    window.onSpeedChange = onSpeedChange;
 
-            function onParamChange() {
-                thetaStart = parseFloat(thetaStartInput.value) || 0;
-                thetaEnd = parseFloat(thetaEndInput.value) || 2 * Math.PI;
-                draw();
-            }
+    // ==================== 参数更新 ====================
+    function applyPreset(preset) {
+        currentPreset = preset;
+        document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
+        const card = document.querySelector('.preset-card[data-preset="' + preset + '"]');
+        if (card) card.classList.add('active');
 
-            function onSliderChange() {
-                paramK = parseFloat(kSlider.value);
-                paramA = parseFloat(aSlider.value);
-                paramPhi = parseFloat(phiSlider.value);
-                document.getElementById('kValue').textContent = paramK.toFixed(1);
-                document.getElementById('aValue').textContent = paramA.toFixed(1);
-                document.getElementById('phiValue').textContent = paramPhi.toFixed(2);
-                draw();
-            }
+        switch (preset) {
+            case 'cos2': customExpr = 'cos(k*theta)'; thetaStart = 0; thetaEnd = 2 * Math.PI; paramK = 2; paramA = 1; paramPhi = 0; break;
+            case 'cos3': customExpr = 'cos(k*theta)'; thetaStart = 0; thetaEnd = Math.PI; paramK = 3; paramA = 1; paramPhi = 0; break;
+            case 'cos5': customExpr = 'cos(k*theta)'; thetaStart = 0; thetaEnd = Math.PI; paramK = 5; paramA = 1; paramPhi = 0; break;
+            case 'cardioid': customExpr = 'A*(1+cos(theta+phi))'; thetaStart = 0; thetaEnd = 2 * Math.PI; paramK = 1; paramA = 1; paramPhi = 0; break;
+            case 'spiral': customExpr = 'A*(theta/3)'; thetaStart = 0; thetaEnd = 4 * Math.PI; paramK = 1; paramA = 1; paramPhi = 0; break;
+            case 'logspiral': customExpr = 'A*exp(theta/5)'; thetaStart = 0; thetaEnd = 4 * Math.PI; paramK = 1; paramA = 1; paramPhi = 0; break;
+        }
+        updateUIFromState();
+        updateRFunc();
+        resetWeave();
+        autoFitView();
+        draw();
+    }
 
-            window.onCustomInput = onCustomInput;
-            window.onParamChange = onParamChange;
-            window.onSliderChange = onSliderChange;
+    function updateUIFromState() {
+        customEqInput.value = customExpr;
+        thetaStartInput.value = thetaStart.toFixed(4);
+        thetaEndInput.value = thetaEnd.toFixed(4);
+        kSlider.value = paramK;
+        aSlider.value = paramA;
+        phiSlider.value = paramPhi;
+        document.getElementById('kValue').textContent = paramK.toFixed(1);
+        document.getElementById('aValue').textContent = paramA.toFixed(1);
+        document.getElementById('phiValue').textContent = paramPhi.toFixed(2);
+        let displayExpr = customExpr.replace(/theta/g, 'θ').replace(/\*/g, '').replace(/exp\(θ\/5\)/g, 'e^(θ/5)');
+        document.getElementById('polarOverlay').textContent = 'r = ' + displayExpr;
+    }
 
-            // ==================== 导出 ====================
-            function exportImage() {
-                const exportCanvas = document.createElement('canvas');
-                const dpr = 2;
-                const rect = getPolarRect();
-                exportCanvas.width = rect.width * dpr;
-                exportCanvas.height = rect.height * dpr;
-                const exportCtx = exportCanvas.getContext('2d');
-                exportCtx.scale(dpr, dpr);
-                exportCtx.drawImage(polarCanvas, 0, 0, rect.width, rect.height);
-                exportCtx.fillStyle = 'rgba(0,0,0,0.8)';
-                exportCtx.fillRect(0, rect.height - 24, rect.width, 24);
-                exportCtx.fillStyle = '#fff';
-                exportCtx.font = '10px "JetBrains Mono", monospace';
-                exportCtx.fillText(`r=${customExpr} | θ:[${thetaStart.toFixed(1)},${thetaEnd.toFixed(1)}] | ${new Date().toLocaleString()}`,
-                    6, rect.height - 7);
-                const link = document.createElement('a');
-                link.download = 'polar-curve-' + new Date().toISOString().slice(0, 10) + '.png';
-                link.href = exportCanvas.toDataURL('image/png');
-                link.click();
-            }
+    function autoFitView() {
+        const curves = generatePolarCurve(1000);
+        let maxAbsR = 1;
+        let validCount = 0;
+        curves.forEach(p => { if (p.valid) { maxAbsR = Math.max(maxAbsR, Math.abs(p.r)); validCount++; } });
+        if (validCount === 0 || maxAbsR < 0.1) maxAbsR = 2;
+        viewRange = Math.max(1.2, maxAbsR * 1.3);
+        viewCX = 0;
+        viewCY = 0;
+    }
 
-            function exportCSV() {
-                const curves = generatePolarCurve(1000);
-                let csv = 'theta,r,x,y\n';
-                curves.forEach(p => {
-                    csv += `${p.theta},${p.r},${p.x},${p.y}\n`;
-                });
-                const blob = new Blob([csv], { type: 'text/csv' });
-                const link = document.createElement('a');
-                link.download = 'polar-data-' + new Date().toISOString().slice(0, 10) + '.csv';
-                link.href = URL.createObjectURL(blob);
-                link.click();
-            }
+    function onCustomInput() {
+        customExpr = customEqInput.value;
+        updateRFunc();
+        updateUIFromState();
+        draw();
+    }
 
-            function resetView() {
-                autoFitView();
-                draw();
-            }
+    function onParamChange() {
+        thetaStart = parseFloat(thetaStartInput.value) || 0;
+        thetaEnd = parseFloat(thetaEndInput.value) || 2 * Math.PI;
+        draw();
+    }
 
-            function showHelp() {
-                alert(
-                    '🌀 极坐标函数绘制器 - 使用说明\n\n' +
-                    '【核心交互】\n' +
-                    '• 拖拽青色探针手柄改变角度\n' +
-                    '• 频率滑块连续改变花瓣数量\n' +
-                    '• "编织演示"观看曲线生长过程\n\n' +
-                    '【图形操作】\n' +
-                    '• 滚轮缩放\n' +
-                    '• 右键/ctrl+左键平移\n' +
-                    '• 双击重置视口\n\n' +
-                    '【自定义方程语法】\n' +
-                    '• 变量: theta\n' +
-                    '• 函数: sin, cos, tan, exp, sqrt, abs\n' +
-                    '• 运算符: + - * / ^ ( )\n' +
-                    '• 示例: cos(k*theta), 1+sin(theta), exp(theta/5)\n\n' +
-                    '【导出】\n' +
-                    '• 📸 导出图片带标签\n' +
-                    '• 📋 导出CSV数据点'
-                );
-            }
+    function onSliderChange() {
+        paramK = parseFloat(kSlider.value);
+        paramA = parseFloat(aSlider.value);
+        paramPhi = parseFloat(phiSlider.value);
+        document.getElementById('kValue').textContent = paramK.toFixed(1);
+        document.getElementById('aValue').textContent = paramA.toFixed(1);
+        document.getElementById('phiValue').textContent = paramPhi.toFixed(2);
+        draw();
+    }
 
-            window.exportImage = exportImage;
-            window.exportCSV = exportCSV;
-            window.resetView = resetView;
-            window.showHelp = showHelp;
+    window.onCustomInput = onCustomInput;
+    window.onParamChange = onParamChange;
+    window.onSliderChange = onSliderChange;
 
-            function draw() {
-                drawPolar();
-                drawThetaR();
-            }
-            window.draw = draw;
+    // ==================== 导出 ====================
+    function exportImage() {
+        const exportCanvas = document.createElement('canvas');
+        const dpr = 2;
+        const rect = getPolarRect();
+        exportCanvas.width = rect.width * dpr;
+        exportCanvas.height = rect.height * dpr;
+        const exportCtx = exportCanvas.getContext('2d');
+        exportCtx.scale(dpr, dpr);
+        exportCtx.drawImage(polarCanvas, 0, 0, rect.width, rect.height);
+        exportCtx.fillStyle = 'rgba(0,0,0,0.8)';
+        exportCtx.fillRect(0, rect.height - 24, rect.width, 24);
+        exportCtx.fillStyle = '#fff';
+        exportCtx.font = '10px "JetBrains Mono", monospace';
+        exportCtx.fillText('r=' + customExpr + ' | θ:[' + thetaStart.toFixed(1) + ',' + thetaEnd.toFixed(1) + '] | ' + new Date().toLocaleString(), 6, rect.height - 7);
+        const link = document.createElement('a');
+        link.download = 'polar-curve-' + new Date().toISOString().slice(0, 10) + '.png';
+        link.href = exportCanvas.toDataURL('image/png');
+        link.click();
+    }
 
-            // ==================== 预设卡片事件 ====================
-            document.getElementById('presetGrid').addEventListener('click', function(e) {
-                const card = e.target.closest('.preset-card');
-                if (!card) return;
-                applyPreset(card.dataset.preset);
-            });
+    function exportCSV() {
+        const curves = generatePolarCurve(1000);
+        let csv = 'theta,r,x,y\n';
+        curves.forEach(p => { csv += p.theta + ',' + p.r + ',' + p.x + ',' + p.y + '\n'; });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const link = document.createElement('a');
+        link.download = 'polar-data-' + new Date().toISOString().slice(0, 10) + '.csv';
+        link.href = URL.createObjectURL(blob);
+        link.click();
+    }
 
-            // ==================== 初始化 ====================
-            window.addEventListener('resize', draw);
-            if (window.ResizeObserver) {
-                new ResizeObserver(() => draw()).observe(polarContainer);
-                new ResizeObserver(() => draw()).observe(thetaRContainer);
-            }
+    function resetView() { autoFitView(); draw(); }
 
-            function init() {
-                updateRFunc();
-                updateUIFromState();
-                autoFitView();
-                onSpeedChange();
-                draw();
-            }
+    function showHelp() {
+        alert('🌀 极坐标函数绘制器 - 使用说明\n\n【核心交互】\n• 拖拽青色探针手柄改变角度\n• 频率滑块连续改变花瓣数量\n• "编织演示"观看曲线生长过程\n\n【图形操作】\n• 滚轮缩放\n• 右键/ctrl+左键平移\n\n【自定义方程语法】\n• 变量: theta\n• 函数: sin, cos, tan, exp, sqrt, abs\n• 运算符: + - * / ^ ( )\n• 示例: cos(k*theta), 1+sin(theta), exp(theta/5)\n\n【导出】\n• 📸 导出图片带标签\n• 📋 导出CSV数据点');
+    }
 
-            window.addEventListener('load', init);
-        })();
-    </script>
+    window.exportImage = exportImage;
+    window.exportCSV = exportCSV;
+    window.resetView = resetView;
+    window.showHelp = showHelp;
+
+    function draw() { drawPolar(); drawThetaR(); }
+    window.draw = draw;
+
+    // ==================== 预设卡片事件 ====================
+    document.getElementById('presetGrid').addEventListener('click', function(e) {
+        const card = e.target.closest('.preset-card');
+        if (!card) return;
+        applyPreset(card.dataset.preset);
+    });
+
+    // ==================== 初始化 ====================
+    window.addEventListener('resize', draw);
+    if (window.ResizeObserver) {
+        new ResizeObserver(() => draw()).observe(polarContainer);
+        new ResizeObserver(() => draw()).observe(thetaRContainer);
+    }
+
+    function init() {
+        updateRFunc();
+        updateUIFromState();
+        autoFitView();
+        onSpeedChange();
+        draw();
+    }
+
+    window.addEventListener('load', init);
+})();
+</script>
 </body>
 </html>

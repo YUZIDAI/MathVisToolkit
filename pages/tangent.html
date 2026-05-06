@@ -1,1150 +1,285 @@
-
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>数学函数可视化构建器</title>
+    <title>切线斜率探索器</title>
     <style>
         :root {
-            --bg: #0f0f1a;
-            --panel-bg: #1a1a2e;
-            --section-bg: #1e1e35;
-            --border: #2a2a45;
-            --text: #d0d0e0;
-            --text-secondary: #8888aa;
-            --accent-blue: #4f9fcf;
-            --accent-red: #e05161;
-            --accent-orange: #ff8c42;
-            --accent-green: #4caf84;
-            --accent-purple: #b87fd9;
-            --accent-yellow: #e5c07b;
-            --accent-cyan: #56b6c2;
-            --accent-pink: #e06c9f;
-            --btn-bg: #2a2a45;
-            --btn-hover: #3a3a60;
+            --bg: #0b0b1a; --card-bg: #151530; --border: #252550;
+            --text: #d8d8f0; --text-secondary: #8888b0;
+            --accent-blue: #4f9fcf; --accent-red: #e05161; --accent-green: #4caf84;
+            --accent-orange: #ff8c42; --accent-cyan: #48c9b0; --accent-purple: #b87fd9;
+            --display-bg: #0a0a20; --btn-bg: #1e1e40; --btn-hover: #2e2e60;
             --graph-bg: #0d1117;
-            --display-bg: #12121f;
+            --mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
         }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        [data-theme="light"] {
+            --bg: #f0f2f5; --card-bg: #ffffff; --border: #d8dce3;
+            --text: #1a1a2e; --text-secondary: #666680;
+            --display-bg: #f5f6fa; --btn-bg: #e8ecf1; --btn-hover: #d8dce3;
+            --graph-bg: #ffffff;
         }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-            user-select: none;
+            font-family: 'Segoe UI', 'PingFang SC', system-ui, sans-serif;
+            background: var(--bg); color: var(--text);
+            display: flex; flex-direction: column; height: 100vh; overflow: hidden; user-select: none;
         }
-
-        /* ========== 顶部标题栏 ========== */
         .header {
-            padding: 10px 20px;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border);
-            backdrop-filter: blur(10px);
-            z-index: 10;
-            flex-shrink: 0;
+            padding: 8px 18px; background: rgba(0,0,0,0.5);
+            display: flex; justify-content: space-between; align-items: center; gap: 12px;
+            border-bottom: 1px solid var(--border); backdrop-filter: blur(10px);
+            z-index: 10; flex-shrink: 0;
         }
-        .header .logo {
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: var(--accent-orange);
-            letter-spacing: 1px;
+        .header-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+        .header-left label { font-weight: 600; font-size: 0.82rem; white-space: nowrap; color: var(--accent-orange); }
+        .expr-input {
+            flex: 1; min-width: 120px; max-width: 300px; padding: 6px 10px;
+            border: 1px solid var(--border); border-radius: 6px;
+            background: var(--display-bg); color: var(--text); font-family: var(--mono);
+            font-size: 0.85rem; outline: none;
         }
-        .header .subtitle {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-            margin-left: 12px;
+        .expr-input:focus { border-color: var(--accent-blue); }
+        .header-links { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+        .header-links a, .header-links button {
+            color: var(--accent-blue); text-decoration: none; font-size: 0.78rem;
+            cursor: pointer; background: none; border: none; padding: 4px 8px;
+            border-radius: 4px; transition: all 0.2s; white-space: nowrap;
         }
-        .header-links {
-            display: flex;
-            gap: 15px;
-            align-items: center;
+        .header-links a:hover, .header-links button:hover { color: #fff; background: var(--btn-hover); }
+        .theme-toggle {
+            padding: 5px 10px; border: 1px solid var(--border); border-radius: 16px;
+            background: var(--card-bg); color: var(--text); cursor: pointer;
+            font-size: 0.75rem; transition: all 0.2s;
         }
-        .header-links a {
-            color: var(--accent-blue);
-            text-decoration: none;
-            font-size: 0.85rem;
-            transition: color 0.2s;
-            cursor: pointer;
-        }
-        .header-links a:hover {
-            color: #fff;
-        }
+        .theme-toggle:hover { border-color: var(--accent-blue); }
+        .btn-apply { padding: 6px 14px; border: none; border-radius: 6px; background: var(--accent-blue); color: #fff; font-weight: 600; font-size: 0.78rem; cursor: pointer; }
+        .btn-apply:hover { filter: brightness(1.15); }
 
-        /* ========== 主体布局 ========== */
-        .main-layout {
-            display: flex;
-            flex: 1;
-            gap: 10px;
-            padding: 10px;
-            overflow: hidden;
-            min-height: 0;‘
-        }
-
-        /* ========== 左侧构建器面板 ========== */
-        .builder-panel {
-            width: 400px;
-            min-width: 400px;
-            background: var(--panel-bg);
-            border-radius: 14px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            padding: 10px;
-            /* 【优化1关键】保持overflow-y: auto以支持滚动 */
-            overflow-y: auto;
-            scrollbar-width: thin;
-            scrollbar-color: var(--border) transparent;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-            border: 1px solid var(--border);
-        }
-        .builder-panel::-webkit-scrollbar {
-            width: 5px;
-        }
-        .builder-panel::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .builder-panel::-webkit-scrollbar-thumb {
-            background: var(--border);
-            border-radius: 10px;
-        }
-
-        /* ========== 【优化1】表达式显示区 - Sticky吸顶 ========== */
-        .display-area {
-            background: var(--display-bg);
-            border: 2px solid var(--border);
-            border-radius: 10px;
-            padding: 12px 14px;
-            min-height: 65px;
-            flex-shrink: 0;
-            /* 关键：sticky定位，吸顶固定 */
-            position: sticky;
-            top: 0;
-            /* 确保高于下方滚动内容 */
-            z-index: 5;
-            /* 增加底部阴影，增强层次感 */
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
-            /* 确保滚动时背景不透明 */
-            background: var(--display-bg);
-        }
-        .display-label {
-            font-size: 0.7rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 6px;
-            pointer-events: none;
-        }
-        /* 【优化2】将表达式显示改为可编辑input */
-        .display-input {
-            font-family: 'Fira Code', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
-            font-size: 1.3rem;
-            font-weight: 600;
-            color: #fff;
-            word-break: break-all;
-            line-height: 1.4;
-            width: 100%;
-            background: transparent;
-            border: none;
-            outline: none;
-            caret-color: var(--accent-orange);
-            /* 模拟原来的显示效果 */
-            padding: 0;
-            margin: 0;
-            min-height: 28px;
-        }
-        .display-input::placeholder {
-            color: #444;
-        }
-        /* 选中文字时的样式 */
-        .display-input::selection {
-            background: rgba(255, 140, 66, 0.4);
-            color: #fff;
-        }
-
-        /* 分类区域 */
-        .section {
-            background: var(--section-bg);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 8px 10px 10px 10px;
-            position: relative;
-            flex-shrink: 0;
-        }
-        .section-title {
-            font-size: 0.75rem;
-            font-weight: 700;
-            color: var(--accent-orange);
-            margin-bottom: 8px;
-            padding-bottom: 6px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            letter-spacing: 1px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .section-title .emoji {
-            font-size: 1rem;
-        }
-
-        /* 按钮网格 */
-        .btn-grid {
-            display: grid;
-            gap: 5px;
-        }
-        .btn-grid.cols-5 {
-            grid-template-columns: repeat(5, 1fr);
-        }
-        .btn-grid.cols-4 {
-            grid-template-columns: repeat(4, 1fr);
-        }
-        .btn-grid.cols-3 {
-            grid-template-columns: repeat(3, 1fr);
-        }
-        .btn-grid.cols-6 {
-            grid-template-columns: repeat(6, 1fr);
-        }
-
-        /* 按钮基础样式 */
-        .btn {
-            padding: 9px 4px;
-            font-size: 0.82rem;
-            font-weight: 500;
-            border: none;
-            border-radius: 7px;
-            cursor: pointer;
-            transition: all 0.12s ease;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-            white-space: nowrap;
-            text-align: center;
-            letter-spacing: 0.3px;
-            color: #e0e0f0;
-            background: var(--btn-bg);
-            position: relative;
-            overflow: hidden;
-        }
-        .btn:hover {
-            transform: translateY(-1.5px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-            filter: brightness(1.3);
-        }
-        .btn:active {
-            transform: scale(0.94);
-            transition: all 0.05s;
-        }
-        .btn::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(circle at center, rgba(255,255,255,0.15) 0%, transparent 70%);
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        .btn:hover::after {
-            opacity: 1;
-        }
-
-        /* 不同类别的按钮配色 */
-        .btn-constant {
-            background: #3a3a55;
-            color: #f0f0ff;
-        }
-        .btn-variable {
-            background: #2d4a4a;
-            color: #b8e8e8;
-        }
-        .btn-operator {
-            background: #4a3520;
-            color: #ffb870;
-            font-weight: 700;
-            font-size: 0.95rem;
-        }
-        .btn-trig {
-            background: #2a3a50;
-            color: #8ab8e8;
-        }
-        .btn-explog {
-            background: #2a4035;
-            color: #8ad8a8;
-        }
-        .btn-calc {
-            background: #352a45;
-            color: #c8a0e0;
-        }
-        .btn-other {
-            background: #3a3030;
-            color: #e0a0a0;
-        }
-        .btn-control {
-            font-weight: 700;
-            letter-spacing: 1px;
-        }
-        .btn-ac {
-            background: #5a2020;
-            color: #ff8888;
-        }
-        .btn-backspace {
-            background: #4a3020;
-            color: #ffb870;
-        }
-        .btn-apply {
-            background: #1a4a3a;
-            color: #88ffb8;
-            font-size: 0.9rem;
-        }
-
-        /* 控制按钮区 */
-        .control-row {
-            display: flex;
-            gap: 8px;
-            flex-shrink: 0;
-        }
-        .control-row .btn {
-            flex: 1;
-            padding: 13px 8px;
-            font-size: 0.9rem;
-        }
-        .control-row .btn-apply {
-            flex: 2;
-        }
-
-        /* ========== 右侧图形区 ========== */
         .graph-panel {
-            flex: 1;
-            background: var(--graph-bg);
-            border-radius: 14px;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-            border: 1px solid var(--border);
-            cursor: default;
-            min-width: 0;
+            flex: 1; background: var(--graph-bg); position: relative; overflow: hidden;
+            border: 1px solid var(--border); margin: 8px; border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-
+        #graphCanvas { display: block; width: 100%; height: 100%; }
         .info-overlay {
-            position: absolute;
-            top: 14px;
-            left: 16px;
-            background: rgba(0, 0, 0, 0.75);
-            padding: 10px 16px;
-            border-radius: 10px;
-            font-family: 'Fira Code', 'Consolas', monospace;
-            font-size: 0.8rem;
-            pointer-events: none;
-            border: 1px solid rgba(255,255,255,0.15);
-            line-height: 1.6;
-            backdrop-filter: blur(6px);
+            position: absolute; top: 12px; left: 14px;
+            background: rgba(0,0,0,0.75); padding: 8px 14px; border-radius: 8px;
+            font-family: var(--mono); font-size: 0.78rem; pointer-events: none;
+            border: 1px solid rgba(255,255,255,0.12); line-height: 1.6;
         }
-        .info-overlay .label-text {
-            color: #aaa;
-        }
-        .info-overlay .value-text {
-            color: var(--accent-orange);
-            font-weight: bold;
-        }
-        .info-overlay .slope-text {
-            color: var(--accent-red);
-            font-weight: bold;
-        }
-
+        .info-overlay .label-text { color: #aaa; }
+        .info-overlay .value-text { color: var(--accent-orange); font-weight: bold; }
+        .info-overlay .slope-text { color: var(--accent-red); font-weight: bold; }
         .hint-bar {
-            position: absolute;
-            bottom: 10px;
-            right: 14px;
-            color: #555;
-            font-size: 0.72rem;
-            background: rgba(0,0,0,0.5);
-            padding: 5px 10px;
-            border-radius: 6px;
-            pointer-events: none;
-        }
-
-        /* 响应式 */
-        @media (max-width: 900px) {
-            .main-layout {
-                flex-direction: column;
-            }
-            .builder-panel {
-                width: 100%;
-                min-width: unset;
-                max-height: 45vh;
-            }
-            .graph-panel {
-                min-height: 300px;
-            }
+            position: absolute; bottom: 8px; right: 12px;
+            color: #555; font-size: 0.68rem; pointer-events: none;
         }
     </style>
+    <script src="../js/common.js"></script>
 </head>
 <body>
-
-<!-- 顶部标题栏 -->
 <div class="header">
-    <div>
-        <span class="logo">📐 MathVis Builder</span>
-        <span class="subtitle">数学函数可视化构建器</span>
+    <div class="header-left">
+        <label for="exprInput">f(x) =</label>
+        <input type="text" class="expr-input" id="exprInput" value="x^3-3*x" placeholder="输入表达式..." spellcheck="false" onkeydown="if(event.key==='Enter')applyFunction()">
+        <button class="btn-apply" onclick="applyFunction()">应用</button>
     </div>
     <div class="header-links">
-        <a onclick="resetAll()">🔄 重置视口</a>
-        <a onclick="exportImage()">📸 导出图像</a>
-        <a onclick="showHelp()">❓ 帮助</a>
+        <button onclick="resetAll()">🔄 重置</button>
+        <button onclick="exportImage()">📸 导出</button>
+        <button onclick="showHelp()">❓ 帮助</button>
+        <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
     </div>
 </div>
-
-<!-- 主体 -->
-<div class="main-layout">
-
-    <!-- ========== 左侧：函数构建器 ========== -->
-    <div class="builder-panel" id="builderPanel">
-
-        <!-- ====== 【优化1&2】表达式显示区 - Sticky吸顶 + 可编辑输入框 ====== -->
-        <div class="display-area" id="displayArea">
-            <div class="display-label">📝 当前表达式 f(x) =</div>
-            <!-- 【优化2】使用input元素替代纯文本div，支持复制粘贴编辑 -->
-            <input
-                type="text"
-                class="display-input"
-                id="exprInput"
-                value="x^3 - 3*x"
-                placeholder="输入表达式..."
-                spellcheck="false"
-                autocomplete="off"
-            >
-        </div>
-
-        <!-- 🔢 常量区 -->
-        <div class="section">
-            <div class="section-title"><span class="emoji">🔢</span> 常量</div>
-            <div class="btn-grid cols-5">
-                <button class="btn btn-constant" onclick="appendExpr('7')">7</button>
-                <button class="btn btn-constant" onclick="appendExpr('8')">8</button>
-                <button class="btn btn-constant" onclick="appendExpr('9')">9</button>
-                <button class="btn btn-constant" onclick="appendExpr('4')">4</button>
-                <button class="btn btn-constant" onclick="appendExpr('5')">5</button>
-                <button class="btn btn-constant" onclick="appendExpr('6')">6</button>
-                <button class="btn btn-constant" onclick="appendExpr('1')">1</button>
-                <button class="btn btn-constant" onclick="appendExpr('2')">2</button>
-                <button class="btn btn-constant" onclick="appendExpr('3')">3</button>
-                <button class="btn btn-constant" onclick="appendExpr('0')">0</button>
-                <button class="btn btn-constant" onclick="appendExpr('.')">.</button>
-                <button class="btn btn-constant" style="font-weight:700;" onclick="appendExpr('pi')">π</button>
-                <button class="btn btn-constant" style="font-weight:700;" onclick="appendExpr('e')">e</button>
-            </div>
-        </div>
-
-        <!-- 📐 变量区 -->
-        <div class="section">
-            <div class="section-title"><span class="emoji">📐</span> 变量</div>
-            <div class="btn-grid cols-4">
-                <button class="btn btn-variable" onclick="appendExpr('x')">x</button>
-                <button class="btn btn-variable" onclick="appendExpr('y')">y</button>
-                <button class="btn btn-variable" onclick="appendExpr('t')">t</button>
-                <button class="btn btn-variable" onclick="appendExpr('a')">a</button>
-            </div>
-        </div>
-
-        <!-- ⚡ 运算符区 -->
-        <div class="section">
-            <div class="section-title"><span class="emoji">⚡</span> 运算符</div>
-            <div class="btn-grid cols-5">
-                <button class="btn btn-operator" onclick="appendExpr('+')">+</button>
-                <button class="btn btn-operator" onclick="appendExpr('-')">−</button>
-                <button class="btn btn-operator" onclick="appendExpr('*')">×</button>
-                <button class="btn btn-operator" onclick="appendExpr('/')">÷</button>
-                <button class="btn btn-operator" onclick="appendExpr('^')">^</button>
-                <button class="btn btn-operator" onclick="appendExpr('(')">(</button>
-                <button class="btn btn-operator" onclick="appendExpr(')')">)</button>
-            </div>
-        </div>
-
-        <!-- 📏 三角函数区 -->
-        <div class="section">
-            <div class="section-title"><span class="emoji">📏</span> 三角函数</div>
-            <div class="btn-grid cols-3">
-                <button class="btn btn-trig" onclick="appendExpr('sin(')">sin</button>
-                <button class="btn btn-trig" onclick="appendExpr('cos(')">cos</button>
-                <button class="btn btn-trig" onclick="appendExpr('tan(')">tan</button>
-                <button class="btn btn-trig" onclick="appendExpr('asin(')">sin⁻¹</button>
-                <button class="btn btn-trig" onclick="appendExpr('acos(')">cos⁻¹</button>
-                <button class="btn btn-trig" onclick="appendExpr('atan(')">tan⁻¹</button>
-            </div>
-        </div>
-
-        <!-- 📊 指对函数区 -->
-        <div class="section">
-            <div class="section-title"><span class="emoji">📊</span> 指对函数</div>
-            <div class="btn-grid cols-4">
-                <button class="btn btn-explog" onclick="appendExpr('exp(')">eˣ</button>
-                <button class="btn btn-explog" onclick="appendExpr('ln(')">ln</button>
-                <button class="btn btn-explog" onclick="appendExpr('log(')">lg</button>
-                <button class="btn btn-explog" onclick="appendExpr('^2')">x²</button>
-                <button class="btn btn-explog" onclick="appendExpr('^3')">x³</button>
-                <button class="btn btn-explog" onclick="appendExpr('sqrt(')">√</button>
-                <button class="btn btn-explog" onclick="appendExpr('cbrt(')">³√</button>
-            </div>
-        </div>
-
-        <!-- ∫ 微积分区 -->
-        <div class="section">
-            <div class="section-title"><span class="emoji">∫</span> 微积分</div>
-            <div class="btn-grid cols-4">
-                <button class="btn btn-calc" onclick="appendExpr('diff(')">d/dx</button>
-                <button class="btn btn-calc" onclick="appendExpr('int(')">∫</button>
-                <button class="btn btn-calc" onclick="appendExpr('lim(')">lim</button>
-                <button class="btn btn-calc" onclick="appendExpr('sum(')">Σ</button>
-            </div>
-        </div>
-
-        <!-- 🔧 其他函数区 -->
-        <div class="section">
-            <div class="section-title"><span class="emoji">🔧</span> 其他</div>
-            <div class="btn-grid cols-4">
-                <button class="btn btn-other" onclick="appendExpr('abs(')">abs</button>
-                <button class="btn btn-other" onclick="appendExpr('1/(')">1/x</button>
-                <button class="btn btn-other" onclick="appendExpr('floor(')">floor</button>
-                <button class="btn btn-other" onclick="appendExpr('ceil(')">ceil</button>
-            </div>
-        </div>
-
-        <!-- ⚙️ 操作区 -->
-        <div class="section">
-            <div class="section-title"><span class="emoji">⚙️</span> 操作</div>
-            <div class="control-row">
-                <button class="btn btn-control btn-ac" onclick="clearAll()">AC 清空</button>
-                <button class="btn btn-control btn-backspace" onclick="backspaceExpr()">⌫ 退格</button>
-                <button class="btn btn-control btn-apply" onclick="applyFunction()">✓ 应用绘图</button>
-            </div>
-        </div>
-
+<div class="graph-panel" id="graphContainer">
+    <canvas id="graphCanvas"></canvas>
+    <div class="info-overlay" id="infoBox">
+        <span class="label-text">📍 </span><span class="value-text" id="infoPoint">x=1.50, y=-1.12</span><br>
+        <span class="label-text">📈 斜率：</span><span class="slope-text" id="infoSlope">m=3.75</span>
     </div>
-
-    <!-- ========== 右侧：图形区域 ========== -->
-    <div class="graph-panel" id="graphContainer">
-        <canvas id="graphCanvas"></canvas>
-        <div class="info-overlay" id="infoBox">
-            <span class="label-text">📍 拖拽红点：</span><span class="value-text" id="infoPoint">x=1.50, y=-1.12</span><br>
-            <span class="label-text">📈 切线斜率：</span><span class="slope-text" id="infoSlope">m=3.75</span>
-        </div>
-        <div class="hint-bar">🖱️ 拖拽红点 &nbsp;|&nbsp; 滚轮缩放 &nbsp;|&nbsp; 右键平移</div>
-    </div>
-
+    <div class="hint-bar">🖱️ 拖拽红点 | 滚轮缩放 | 右键平移</div>
 </div>
 
 <script>
+(function() {
+    const canvas = document.getElementById('graphCanvas');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('graphContainer');
+    const exprInput = document.getElementById('exprInput');
+
+    let xMin = -5, xMax = 5, yMin = -6, yMax = 6;
+    let draggingPoint = false, panning = false, panStart = null;
+    let pointX = 1.5, pointY = 0;
+    let currentFn = Common.compileExpr(exprInput.value);
+
+    // URL参数
     (function() {
-        // ==================== 图形引擎 ====================
-        const canvas = document.getElementById('graphCanvas');
-        const ctx = canvas.getContext('2d');
-        const container = document.getElementById('graphContainer');
-        // 【优化2】获取输入框引用
-        const exprInput = document.getElementById('exprInput');
-
-        // 视口参数
-        let xMin = -5, xMax = 5, yMin = -6, yMax = 6;
-
-        // 拖拽状态
-        let draggingPoint = false;
-        let panning = false;
-        let panStart = null;
-        let pointX = 1.5;
-        let pointY = 0;
-
-        // 当前编译后的函数
-        let currentFn = compileExpr(exprInput.value);
-
-        // ==================== 读取URL参数中的函数 ====================
-        (function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const passedFunc = urlParams.get('func');
-            if (passedFunc) {
-                const decoded = decodeURIComponent(passedFunc);
-                exprInput.value = decoded;
-                // 自动应用函数
-                setTimeout(() => {
-                    const fn = compileExpr(decoded);
-                    if (fn) {
-                        currentFn = fn;
-                        pointX = 1.5;
-                        draw();
-                    }
-                }, 300);
-            }
-        })();
-
-        // ==================== 表达式编译 ====================
-        function compileExpr(expr) {
-            let processed = expr
-                .replace(/\^/g, '**')
-                .replace(/(?<![a-zA-Z])pi(?![a-zA-Z])/g, '(Math.PI)')
-                .replace(/(?<![a-zA-Z])e(?![a-zA-Z+\-^*\/()])/g, '(Math.E)')
-                .replace(/abs/g, 'Math.abs')
-                .replace(/sqrt/g, 'Math.sqrt')
-                .replace(/cbrt/g, 'Math.cbrt')
-                .replace(/asin/g, 'Math.asin')
-                .replace(/acos/g, 'Math.acos')
-                .replace(/atan/g, 'Math.atan')
-                .replace(/sinh/g, 'Math.sinh')
-                .replace(/cosh/g, 'Math.cosh')
-                .replace(/sin/g, 'Math.sin')
-                .replace(/cos/g, 'Math.cos')
-                .replace(/tan/g, 'Math.tan')
-                .replace(/exp/g, 'Math.exp')
-                .replace(/ln/g, 'Math.log')
-                .replace(/log/g, 'Math.log10')
-                .replace(/floor/g, 'Math.floor')
-                .replace(/ceil/g, 'Math.ceil')
-                .replace(/diff\(/g, '(function(x){ const h=1e-7; return (')
-                .replace(/int\(/g, '(function(x){ /* 积分占位 */ return ')
-                .replace(/lim\(/g, '(function(x){ /* 极限占位 */ return ')
-                .replace(/sum\(/g, '(function(x){ /* 求和占位 */ return ');
-
-            // 处理 y, t, a 变量（默认视为等同于 x）
-            processed = processed.replace(/(?<![a-zA-Z])y(?![a-zA-Z])/g, 'x');
-            processed = processed.replace(/(?<![a-zA-Z])t(?![a-zA-Z])/g, 'x');
-            processed = processed.replace(/(?<![a-zA-Z])a(?![a-zA-Z])/g, 'x');
-
-            try {
-                return new Function('x', `try { return (${processed}); } catch(e) { return NaN; }`);
-            } catch (e) {
-                return null;
-            }
+        const urlParams = new URLSearchParams(window.location.search);
+        const passedFunc = urlParams.get('func');
+        if (passedFunc) {
+            const decoded = decodeURIComponent(passedFunc);
+            exprInput.value = decoded;
+            setTimeout(() => {
+                const fn = Common.compileExpr(decoded);
+                if (fn) { currentFn = fn; pointX = 1.5; draw(); }
+            }, 300);
         }
+    })();
 
-        function numericalDerivative(fn, x, h = 1e-7) {
-            return (fn(x + h) - fn(x - h)) / (2 * h);
+    // 主题
+    const savedTheme = localStorage.getItem('mathvislab_theme');
+    if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+    window.toggleTheme = function() {
+        const html = document.documentElement;
+        const next = html.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('mathvislab_theme', next);
+        draw();
+    };
+
+    function getRect() { return container.getBoundingClientRect(); }
+    function toCanvasX(mx, W) { return ((mx - xMin) / (xMax - xMin)) * W; }
+    function toCanvasY(my, H) { return H - ((my - yMin) / (yMax - yMin)) * H; }
+    function toMathX(cx, W) { return xMin + (cx / W) * (xMax - xMin); }
+    function toMathY(cy, H) { return yMax - (cy / H) * (yMax - yMin); }
+
+    function draw() {
+        const rect = getRect();
+        const W = rect.width, H = rect.height;
+        const dpr = window.devicePixelRatio || 1;
+        if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
+            canvas.width = W * dpr; canvas.height = H * dpr;
+            canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+            ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.scale(dpr, dpr);
         }
+        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = isLight ? '#f8f9fc' : '#0d1117';
+        ctx.fillRect(0, 0, W, H);
 
-        // ==================== Canvas 坐标转换 ====================
-        function getRect() {
-            return container.getBoundingClientRect();
+        // 网格
+        ctx.strokeStyle = isLight ? '#e0e0e0' : '#1a1a30';
+        ctx.lineWidth = 0.5;
+        const gsx = Math.pow(10, Math.floor(Math.log10(xMax - xMin))) / 5;
+        const gsy = Math.pow(10, Math.floor(Math.log10(yMax - yMin))) / 5;
+        for (let x = Math.floor(xMin / gsx) * gsx; x <= xMax; x += gsx) {
+            ctx.beginPath(); ctx.moveTo(toCanvasX(x, W), 0); ctx.lineTo(toCanvasX(x, W), H); ctx.stroke();
         }
-
-        function toCanvasX(mathX, W) {
-            return ((mathX - xMin) / (xMax - xMin)) * W;
+        for (let y = Math.floor(yMin / gsy) * gsy; y <= yMax; y += gsy) {
+            ctx.beginPath(); ctx.moveTo(0, toCanvasY(y, H)); ctx.lineTo(W, toCanvasY(y, H)); ctx.stroke();
         }
+        // 坐标轴
+        const axisY = toCanvasY(0, H), axisX = toCanvasX(0, W);
+        ctx.strokeStyle = isLight ? '#999' : '#888';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(0, axisY); ctx.lineTo(W, axisY); ctx.moveTo(axisX, 0); ctx.lineTo(axisX, H); ctx.stroke();
+        ctx.fillStyle = isLight ? '#666' : '#aaa';
+        ctx.font = '11px sans-serif';
+        ctx.fillText('x', W - 14, axisY - 6); ctx.fillText('y', axisX + 8, 14);
 
-        function toCanvasY(mathY, H) {
-            return H - ((mathY - yMin) / (yMax - yMin)) * H;
-        }
-
-        function toMathX(canvasX, W) {
-            return xMin + (canvasX / W) * (xMax - xMin);
-        }
-
-        function toMathY(canvasY, H) {
-            return yMax - (canvasY / H) * (yMax - yMin);
-        }
-
-        // ==================== 绘制 ====================
-        function draw() {
-            const rect = getRect();
-            const W = rect.width, H = rect.height;
-
-            // 高清适配
-            const dpr = window.devicePixelRatio || 1;
-            if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
-                canvas.width = W * dpr;
-                canvas.height = H * dpr;
-                canvas.style.width = W + 'px';
-                canvas.style.height = H + 'px';
-                ctx.setTransform(1, 0, 0, 1, 0, 0);
-                ctx.scale(dpr, dpr);
-            }
-
-            ctx.clearRect(0, 0, W, H);
-
-            // 背景
-            ctx.fillStyle = '#0d1117';
-            ctx.fillRect(0, 0, W, H);
-
-            // 网格线
-            ctx.strokeStyle = '#1a1a30';
-            ctx.lineWidth = 0.5;
-            const gridStepX = Math.pow(10, Math.floor(Math.log10(xMax - xMin))) / 5;
-            const gridStepY = Math.pow(10, Math.floor(Math.log10(yMax - yMin))) / 5;
-
-            for (let x = Math.floor(xMin / gridStepX) * gridStepX; x <= xMax; x += gridStepX) {
-                ctx.beginPath();
-                ctx.moveTo(toCanvasX(x, W), 0);
-                ctx.lineTo(toCanvasX(x, W), H);
-                ctx.stroke();
-            }
-            for (let y = Math.floor(yMin / gridStepY) * gridStepY; y <= yMax; y += gridStepY) {
-                ctx.beginPath();
-                ctx.moveTo(0, toCanvasY(y, H));
-                ctx.lineTo(W, toCanvasY(y, H));
-                ctx.stroke();
-            }
-
-            // 坐标轴
-            ctx.strokeStyle = '#888';
-            ctx.lineWidth = 1.5;
+        if (currentFn) {
             ctx.beginPath();
-            const axisY = toCanvasY(0, H);
-            const axisX = toCanvasX(0, W);
-            ctx.moveTo(0, axisY);
-            ctx.lineTo(W, axisY);
-            ctx.moveTo(axisX, 0);
-            ctx.lineTo(axisX, H);
+            ctx.strokeStyle = '#4f9fcf'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+            let first = true;
+            const step = (xMax - xMin) / W * 0.15;
+            for (let mx = xMin; mx <= xMax; mx += step) {
+                const my = currentFn(mx);
+                if (isNaN(my) || !isFinite(my) || Math.abs(my) > 1e6) { first = true; continue; }
+                const cx = toCanvasX(mx, W), cy = toCanvasY(my, H);
+                if (cy < -500 || cy > H + 500) { first = true; continue; }
+                first ? (ctx.moveTo(cx, cy), first = false) : ctx.lineTo(cx, cy);
+            }
             ctx.stroke();
 
-            // 坐标轴箭头
-            ctx.fillStyle = '#888';
-            // x轴箭头
-            ctx.beginPath();
-            ctx.moveTo(W - 8, axisY - 5);
-            ctx.lineTo(W, axisY);
-            ctx.lineTo(W - 8, axisY + 5);
-            ctx.fill();
-            // y轴箭头
-            ctx.beginPath();
-            ctx.moveTo(axisX - 5, 8);
-            ctx.lineTo(axisX, 0);
-            ctx.lineTo(axisX + 5, 8);
-            ctx.fill();
-
-            // 轴标签
-            ctx.fillStyle = '#aaa';
-            ctx.font = '12px "Segoe UI", sans-serif';
-            ctx.fillText('x', W - 18, axisY - 10);
-            ctx.fillText('y', axisX + 12, 16);
-
-            // 函数曲线
-            if (currentFn) {
-                ctx.beginPath();
-                ctx.strokeStyle = '#4f9fcf';
-                ctx.lineWidth = 2.5;
-                ctx.lineJoin = 'round';
-                let first = true;
-                const step = Math.max(1, (xMax - xMin) / W * 0.5);
-                for (let mathX = xMin; mathX <= xMax; mathX += step) {
-                    const mathY = currentFn(mathX);
-                    if (isNaN(mathY) || !isFinite(mathY) || Math.abs(mathY) > 1e6) {
-                        first = true;
-                        continue;
-                    }
-                    const cx = toCanvasX(mathX, W);
-                    const cy = toCanvasY(mathY, H);
-                    if (cy < -500 || cy > H + 500) {
-                        first = true;
-                        continue;
-                    }
-                    if (first) {
-                        ctx.moveTo(cx, cy);
-                        first = false;
-                    } else {
-                        ctx.lineTo(cx, cy);
-                    }
+            const y0 = currentFn(pointX);
+            if (isFinite(y0)) {
+                pointY = y0;
+                const slope = Common.numericalDerivative(currentFn, pointX);
+                const px = toCanvasX(pointX, W), py = toCanvasY(y0, H);
+                if (isFinite(slope)) {
+                    const tx1 = toCanvasX(xMin, W), ty1 = toCanvasY(y0 + slope * (xMin - pointX), H);
+                    const tx2 = toCanvasX(xMax, W), ty2 = toCanvasY(y0 + slope * (xMax - pointX), H);
+                    ctx.beginPath(); ctx.strokeStyle = '#e05161'; ctx.lineWidth = 2;
+                    ctx.setLineDash([8, 5]); ctx.moveTo(tx1, ty1); ctx.lineTo(tx2, ty2); ctx.stroke(); ctx.setLineDash([]);
                 }
-                ctx.stroke();
-            }
+                ctx.beginPath(); ctx.fillStyle = '#e05161'; ctx.shadowColor = '#e05161'; ctx.shadowBlur = 10;
+                ctx.arc(px, py, 7, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
 
-            // 可拖拽点与切线
-            if (currentFn) {
-                const y0 = currentFn(pointX);
-                if (isFinite(y0) && !isNaN(y0)) {
-                    pointY = y0;
-                    const slope = numericalDerivative(currentFn, pointX);
-                    const px = toCanvasX(pointX, W);
-                    const py = toCanvasY(y0, H);
-
-                    // 切线
-                    if (isFinite(slope)) {
-                        const tangentX1 = xMin;
-                        const tangentY1 = y0 + slope * (xMin - pointX);
-                        const tangentX2 = xMax;
-                        const tangentY2 = y0 + slope * (xMax - pointX);
-                        const tx1 = toCanvasX(tangentX1, W);
-                        const ty1 = toCanvasY(tangentY1, H);
-                        const tx2 = toCanvasX(tangentX2, W);
-                        const ty2 = toCanvasY(tangentY2, H);
-
-                        ctx.beginPath();
-                        ctx.strokeStyle = '#e05161';
-                        ctx.lineWidth = 2;
-                        ctx.setLineDash([8, 5]);
-                        ctx.moveTo(tx1, ty1);
-                        ctx.lineTo(tx2, ty2);
-                        ctx.stroke();
-                        ctx.setLineDash([]);
-                    }
-
-                    // 可拖拽点
-                    ctx.beginPath();
-                    ctx.fillStyle = '#e05161';
-                    ctx.shadowColor = '#e05161';
-                    ctx.shadowBlur = 12;
-                    ctx.arc(px, py, 8, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-                    ctx.strokeStyle = '#fff';
-                    ctx.lineWidth = 2.5;
-                    ctx.stroke();
-
-                    // 更新信息面板
-                    document.getElementById('infoPoint').textContent =
-                        `x=${pointX.toFixed(4)}, y=${y0.toFixed(4)}`;
-                    document.getElementById('infoSlope').textContent =
-                        isFinite(slope) ? `m=${slope.toFixed(4)}` : 'm=未定义';
-                }
+                document.getElementById('infoPoint').textContent = `x=${pointX.toFixed(4)}, y=${y0.toFixed(4)}`;
+                document.getElementById('infoSlope').textContent = isFinite(slope) ? `m=${slope.toFixed(4)}` : 'm=未定义';
             }
         }
+    }
 
-        // ==================== 交互事件 ====================
-        function getEventPos(e) {
-            const rect = getRect();
-            return {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top,
-                rect: rect
-            };
+    function getEventPos(e) { const r = getRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, rect: r }; }
+
+    canvas.addEventListener('pointerdown', function(e) {
+        const pos = getEventPos(e); const W = pos.rect.width, H = pos.rect.height;
+        if (e.button === 2 || (e.button === 0 && e.ctrlKey)) {
+            panning = true; panStart = { ...pos, xMin, xMax, yMin, yMax };
+            canvas.style.cursor = 'grabbing'; e.preventDefault(); return;
         }
+        if (e.button === 0 && currentFn) {
+            const px = toCanvasX(pointX, W), py = toCanvasY(pointY, H);
+            if (Math.hypot(pos.x - px, pos.y - py) < 16) { draggingPoint = true; canvas.style.cursor = 'grabbing'; e.preventDefault(); }
+        }
+    });
 
-        canvas.addEventListener('pointerdown', function(e) {
+    window.addEventListener('pointermove', function(e) {
+        if (draggingPoint) { const pos = getEventPos(e); pointX = Math.max(xMin, Math.min(xMax, toMathX(pos.x, pos.rect.width))); draw(); }
+        if (panning && panStart) {
+            const pos = getEventPos(e); const W = pos.rect.width, H = pos.rect.height;
+            const dx = (pos.x - panStart.x) / W * (panStart.xMax - panStart.xMin);
+            const dy = (pos.y - panStart.y) / H * (panStart.yMax - panStart.yMin);
+            xMin = panStart.xMin - dx; xMax = panStart.xMax - dx;
+            yMin = panStart.yMin + dy; yMax = panStart.yMax + dy;
+            draw();
+        }
+        if (!draggingPoint && !panning && currentFn) {
             const pos = getEventPos(e);
-            const { rect } = pos;
-            const W = rect.width, H = rect.height;
-
-            if (e.button === 2 || (e.button === 0 && e.ctrlKey)) {
-                panning = true;
-                panStart = {
-                    x: pos.x,
-                    y: pos.y,
-                    xMin: xMin,
-                    xMax: xMax,
-                    yMin: yMin,
-                    yMax: yMax
-                };
-                canvas.style.cursor = 'grabbing';
-                e.preventDefault();
-                return;
-            }
-
-            if (e.button === 0 && currentFn) {
-                const px = toCanvasX(pointX, W);
-                const py = toCanvasY(pointY, H);
-                const dist = Math.hypot(pos.x - px, pos.y - py);
-                if (dist < 18) {
-                    draggingPoint = true;
-                    canvas.style.cursor = 'grabbing';
-                    e.preventDefault();
-                }
-            }
-        });
-
-        window.addEventListener('pointermove', function(e) {
-            if (draggingPoint) {
-                const pos = getEventPos(e);
-                const { rect } = pos;
-                const W = rect.width;
-                pointX = Math.max(xMin, Math.min(xMax, toMathX(pos.x, W)));
-                draw();
-            }
-            if (panning && panStart) {
-                const pos = getEventPos(e);
-                const { rect } = pos;
-                const W = rect.width, H = rect.height;
-                const dx = (pos.x - panStart.x) / W * (panStart.xMax - panStart.xMin);
-                const dy = (pos.y - panStart.y) / H * (panStart.yMax - panStart.yMin);
-                xMin = panStart.xMin - dx;
-                xMax = panStart.xMax - dx;
-                yMin = panStart.yMin + dy;
-                yMax = panStart.yMax + dy;
-                draw();
-            }
-
-            if (!draggingPoint && !panning && currentFn) {
-                const pos = getEventPos(e);
-                const { rect } = pos;
-                const W = rect.width, H = rect.height;
-                const px = toCanvasX(pointX, W);
-                const py = toCanvasY(pointY, H);
-                const dist = Math.hypot(pos.x - px, pos.y - py);
-                canvas.style.cursor = dist < 18 ? 'grab' : 'default';
-            }
-        });
-
-        window.addEventListener('pointerup', function() {
-            if (draggingPoint) {
-                draggingPoint = false;
-                canvas.style.cursor = 'default';
-            }
-            if (panning) {
-                panning = false;
-                panStart = null;
-                canvas.style.cursor = 'default';
-            }
-        });
-
-        canvas.addEventListener('wheel', function(e) {
-            e.preventDefault();
-            const pos = getEventPos(e);
-            const { rect } = pos;
-            const W = rect.width, H = rect.height;
-            const mathX = toMathX(pos.x, W);
-            const mathY = toMathY(pos.y, H);
-            const zoom = e.deltaY < 0 ? 0.88 : 1.12;
-
-            xMin = mathX - (mathX - xMin) * zoom;
-            xMax = mathX + (xMax - mathX) * zoom;
-            yMin = mathY - (mathY - yMin) * zoom;
-            yMax = mathY + (yMax - mathY) * zoom;
-
-            draw();
-        }, { passive: false });
-
-        canvas.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-        });
-
-        // 窗口大小变化
-        window.addEventListener('resize', draw);
-
-        // ResizeObserver 监听容器大小变化
-        if (window.ResizeObserver) {
-            new ResizeObserver(() => draw()).observe(container);
+            const dist = Math.hypot(pos.x - toCanvasX(pointX, pos.rect.width), pos.y - toCanvasY(pointY, pos.rect.height));
+            canvas.style.cursor = dist < 16 ? 'grab' : 'default';
         }
+    });
 
-        // ==================== 【优化2】构建器逻辑（支持光标位置插入） ====================
+    window.addEventListener('pointerup', function() { draggingPoint = false; panning = false; panStart = null; canvas.style.cursor = 'default'; });
 
-        /**
-         * 获取当前输入框的值
-         */
-        function getExpr() {
-            return exprInput.value;
-        }
+    canvas.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        const pos = getEventPos(e); const W = pos.rect.width, H = pos.rect.height;
+        const mx = toMathX(pos.x, W), my = toMathY(pos.y, H);
+        const zoom = e.deltaY < 0 ? 0.88 : 1.12;
+        xMin = mx - (mx - xMin) * zoom; xMax = mx + (xMax - mx) * zoom;
+        yMin = my - (my - yMin) * zoom; yMax = my + (yMax - my) * zoom;
+        draw();
+    }, { passive: false });
 
-        /**
-         * 设置输入框的值并同步
-         */
-        function setExpr(value) {
-            exprInput.value = value;
-        }
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+    window.addEventListener('resize', draw);
+    if (window.ResizeObserver) new ResizeObserver(() => draw()).observe(container);
 
-        /**
-         * 【优化2核心】在光标位置插入文本
-         * 如果有选中文本则替换选中部分，否则在光标处插入
-         */
-        function insertAtCursor(text) {
-            const input = exprInput;
-            const start = input.selectionStart;
-            const end = input.selectionEnd;
-            const currentValue = input.value;
+    window.applyFunction = function() {
+        const expr = exprInput.value.trim();
+        if (!expr) { alert('⚠️ 请输入函数表达式'); return; }
+        const fn = Common.compileExpr(expr);
+        if (!fn) { alert('⚠️ 表达式无效'); return; }
+        currentFn = fn; pointX = 1.5; draw();
+    };
+    window.resetAll = function() { xMin = -5; xMax = 5; yMin = -6; yMax = 6; pointX = 1.5; draw(); };
+    window.exportImage = function() {
+        const link = document.createElement('a');
+        link.download = 'tangent-' + new Date().toISOString().slice(0,10) + '.png';
+        link.href = canvas.toDataURL('image/png'); link.click();
+    };
+    window.showHelp = function() {
+        alert('📐 切线斜率探索器\n\n🖱️ 拖拽红点沿曲线移动\n🔍 滚轮缩放 | ✋ 右键平移\n\n支持: sin,cos,tan,exp,ln,sqrt,abs,^,+,-,*,/,()');
+    };
 
-            // 在光标位置插入：光标前文本 + 新文本 + 光标后文本
-            const newValue = currentValue.substring(0, start) + text + currentValue.substring(end);
-            setExpr(newValue);
-
-            // 将光标移动到插入文本之后
-            const newCursorPos = start + text.length;
-            input.setSelectionRange(newCursorPos, newCursorPos);
-
-            // 保持输入框焦点
-            input.focus();
-        }
-
-        /**
-         * 按钮追加表达式（调用插入函数）
-         */
-        window.appendExpr = function(str) {
-            insertAtCursor(str);
-        };
-
-        /**
-         * 清空表达式
-         */
-        window.clearAll = function() {
-            setExpr('');
-            exprInput.focus();
-        };
-
-        /**
-         * 智能退格删除
-         */
-        window.backspaceExpr = function() {
-            const input = exprInput;
-            const start = input.selectionStart;
-            const end = input.selectionEnd;
-            const currentValue = input.value;
-
-            // 如果有选中文本，直接删除选中部分
-            if (start !== end) {
-                const newValue = currentValue.substring(0, start) + currentValue.substring(end);
-                setExpr(newValue);
-                input.setSelectionRange(start, start);
-                input.focus();
-                return;
-            }
-
-            // 无选中，检查光标前是否匹配函数名后缀
-            const beforeCursor = currentValue.substring(0, start);
-            const patterns = [
-                'diff(', 'int(', 'lim(', 'sum(',
-                'asin(', 'acos(', 'atan(', 'sinh(', 'cosh(',
-                'sin(', 'cos(', 'tan(',
-                'exp(', 'ln(', 'log(', 'abs(', 'sqrt(', 'cbrt(',
-                'floor(', 'ceil(', '1/('
-            ];
-
-            let matched = false;
-            for (const p of patterns) {
-                if (beforeCursor.endsWith(p)) {
-                    // 删除整个函数名
-                    const newValue = currentValue.substring(0, start - p.length) + currentValue.substring(start);
-                    setExpr(newValue);
-                    input.setSelectionRange(start - p.length, start - p.length);
-                    matched = true;
-                    break;
-                }
-            }
-
-            if (!matched && start > 0) {
-                // 普通删除一个字符
-                const newValue = currentValue.substring(0, start - 1) + currentValue.substring(start);
-                setExpr(newValue);
-                input.setSelectionRange(start - 1, start - 1);
-            }
-            input.focus();
-        };
-
-        /**
-         * 应用函数到图形
-         */
-        window.applyFunction = function() {
-            const expr = getExpr().trim();
-            if (!expr) {
-                alert('⚠️ 表达式为空，请输入函数表达式。');
-                return;
-            }
-            const fn = compileExpr(expr);
-            if (!fn) {
-                alert('⚠️ 表达式无效，请检查：\n\n• 括号是否匹配\n• 函数名是否正确\n• 运算符是否完整\n\n当前表达式：' + expr);
-                return;
-            }
-            currentFn = fn;
-            // 重置视口
-            xMin = -5;
-            xMax = 5;
-            yMin = -6;
-            yMax = 6;
-            // 重置拖拽点位置
-            pointX = expr.includes('log') || expr.includes('ln') ? 2 : 1.5;
-            draw();
-            // 应用后输入框失去焦点，避免误触
-            exprInput.blur();
-        };
-
-        /**
-         * 重置视口
-         */
-        window.resetAll = function() {
-            xMin = -5;
-            xMax = 5;
-            yMin = -6;
-            yMax = 6;
-            pointX = 1.5;
-            draw();
-        };
-
-        /**
-         * 导出图像
-         */
-        window.exportImage = function() {
-            const link = document.createElement('a');
-            link.download = 'math-graph-' + new Date().toISOString().slice(0, 10) + '.png';
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-        };
-
-        /**
-         * 帮助
-         */
-        window.showHelp = function() {
-            alert(
-                '📐 数学函数可视化构建器 - 使用说明\n\n' +
-                '【表达式编辑】\n' +
-                '• 直接在输入框中输入/编辑表达式\n' +
-                '• 支持复制(Ctrl+C)、粘贴(Ctrl+V)、剪切(Ctrl+X)\n' +
-                '• 点击按钮追加到光标位置\n\n' +
-                '【右侧图形】\n' +
-                '• 🖱️ 拖拽红点：沿曲线移动，查看切线\n' +
-                '• 🔍 滚轮：缩放\n' +
-                '• ✋ 右键拖动 / Ctrl+左键：平移\n\n' +
-                '【支持的语法】\n' +
-                '• 基本运算：+ - * / ^ ( )\n' +
-                '• 三角函数：sin(x), cos(x), tan(x), asin(x), acos(x), atan(x)\n' +
-                '• 指对函数：exp(x), ln(x), log(x), sqrt(x), cbrt(x)\n' +
-                '• 其他：abs(x), floor(x), ceil(x)\n' +
-                '• 常量：pi, e\n' +
-                '• 变量：x, y, t, a (后三者自动映射为x)'
-            );
-        };
-
-        // ==================== 【优化2】键盘快捷键（仅在输入框未聚焦时触发全局快捷键） ====================
-        window.addEventListener('keydown', function(e) {
-            // 如果焦点在输入框内，让浏览器正常处理（支持复制粘贴等）
-            if (document.activeElement === exprInput) {
-                // Enter键在输入框中触发应用
-                if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
-                    e.preventDefault();
-                    applyFunction();
-                }
-                // Esc键清空
-                if (e.key === 'Escape') {
-                    e.preventDefault();
-                    clearAll();
-                }
-                return;
-            }
-
-            // 焦点不在输入框时的全局快捷键
-            const key = e.key;
-            const validKeys = '0123456789+-*^/()xyta.e';
-            if (validKeys.includes(key) && !e.ctrlKey && !e.metaKey) {
-                e.preventDefault();
-                let char = key;
-                appendExpr(char);
-            } else if (key === 'Backspace' && !e.ctrlKey) {
-                e.preventDefault();
-                backspaceExpr();
-            } else if (key === 'Enter' && !e.ctrlKey) {
-                e.preventDefault();
-                applyFunction();
-            } else if (key === 'Escape') {
-                e.preventDefault();
-                clearAll();
-            }
-        });
-
-        // ==================== 【优化2】输入框获得焦点时自动全选（方便快速替换） ====================
-        exprInput.addEventListener('focus', function() {
-            // 如果输入框内容为默认示例，自动全选方便替换
-            // 用户可自行决定是否替换；不强制全选以免影响编辑体验
-        });
-
-        // ==================== 初始化 ====================
-        window.addEventListener('load', function() {
-            setTimeout(draw, 100);
-        });
-
-    })();
+    window.addEventListener('load', () => setTimeout(draw, 100));
+})();
 </script>
-
 </body>
 </html>

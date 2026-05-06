@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D曲面绘制器 · Surface Visualizer</title>
+    <style>
+        :root {
+            --bg: #0b0b1a; --panel-bg: #12122a; --section-bg: #191935;
+            --border: #282850; --text: #c8c8e0; --text-secondary: #7a7aa0;
+            --accent-blue: #4f9fcf; --accent-red: #e05161; --accent-green: #4caf84;
+            --accent-purple: #b87fd9; --accent-orange: #ff8c42; --accent-cyan: #48c9b0;
+            --accent-gold: #ffd700;
+            --display-bg: #0d0d20; --btn-bg: #262645; --btn-hover: #353560;
+            --graph-bg: #0d1117;
+            --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+        }
+        [data-theme="light"] {
+            --bg: #f0f2f5; --panel-bg: #ffffff; --section-bg: #f8f9fc;
+            --border: #d8dce3; --text: #1a1a2e; --text-secondary: #666680;
+            --btn-bg: #e8ecf1; --btn-hover: #d8dce3; --display-bg: #f5f6fa;
+            --graph-bg: #ffffff;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+            background: var(--bg); color: var(--text);
+            display: flex; flex-direction: column; height: 100vh; overflow: hidden; user-select: none;
+        }
+        .header {
+            padding: 8px 18px; background: rgba(0,0,0,0.5);
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--border); backdrop-filter: blur(10px);
+            z-index: 10; flex-shrink: 0;
+        }
+        .header .logo { font-size: 1.15rem; font-weight: 700; color: var(--accent-cyan); letter-spacing: 1px; }
+        .header .subtitle { font-size: 0.75rem; color: var(--text-secondary); margin-left: 10px; }
+        .header-links { display: flex; gap: 8px; align-items: center; }
+        .header-links a, .header-links button {
+            color: var(--accent-blue); text-decoration: none; font-size: 0.75rem;
+            cursor: pointer; background: none; border: none; padding: 4px 8px;
+            border-radius: 4px; transition: all 0.2s; white-space: nowrap;
+        }
+        .header-links a:hover, .header-links button:hover { color: var(--text); background: var(--btn-hover); }
+        .theme-toggle {
+            padding: 5px 10px; border: 1px solid var(--border); border-radius: 16px;
+            background: var(--panel-bg); color: var(--text);
+            cursor: pointer; font-size: 0.75rem; transition: all 0.2s;
+        }
+        .theme-toggle:hover { border-color: var(--accent-blue); }
+
+        .main-layout { display: flex; flex: 1; gap: 10px; padding: 10px; overflow: hidden; min-height: 0; }
+        .graph-panel {
+            flex: 1; background: var(--graph-bg); border-radius: 14px;
+            position: relative; overflow: hidden; cursor: grab;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5); border: 1px solid var(--border); min-width: 0;
+        }
+        .graph-panel:active { cursor: grabbing; }
+        #graphCanvas { display: block; width: 100%; height: 100%; }
+        .canvas-overlay { position: absolute; pointer-events: none; }
+        .overlay-top-left {
+            top: 10px; left: 14px; background: rgba(0,0,0,0.7); padding: 5px 12px;
+            border-radius: 6px; font-family: var(--mono); font-size: 0.72rem;
+            color: var(--accent-cyan); border: 1px solid rgba(255,255,255,0.1);
+        }
+        .overlay-top-right {
+            top: 10px; right: 14px; background: rgba(0,0,0,0.7); padding: 5px 12px;
+            border-radius: 6px; font-family: var(--mono); font-size: 0.72rem;
+            color: var(--accent-gold); border: 1px solid rgba(255,255,255,0.1);
+        }
+        .overlay-bottom-right {
+            bottom: 10px; right: 14px; background: rgba(0,0,0,0.8); padding: 6px 12px;
+            border-radius: 6px; font-family: var(--mono); font-size: 0.7rem;
+            color: var(--text); border: 1px solid rgba(255,255,255,0.15); line-height: 1.6;
+        }
+        .hint-bar { position: absolute; bottom: 8px; left: 12px; color: #555; font-size: 0.62rem; pointer-events: none; }
+
+        .control-panel {
+            width: 320px; min-width: 320px; background: var(--panel-bg); border-radius: 14px;
+            display: flex; flex-direction: column; gap: 7px; padding: 8px;
+            overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5); border: 1px solid var(--border);
+        }
+        .control-panel::-webkit-scrollbar { width: 5px; }
+        .control-panel::-webkit-scrollbar-track { background: transparent; }
+        .control-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+        .section { background: var(--section-bg); border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; flex-shrink: 0; }
+        .section-title { font-size: 0.68rem; font-weight: 700; color: var(--accent-orange); margin-bottom: 6px; letter-spacing: 1px; display: flex; align-items: center; gap: 5px; }
+
+        .preset-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+        .preset-card {
+            background: var(--btn-bg); border: 1px solid var(--border); border-radius: 7px;
+            padding: 6px 4px; cursor: pointer; text-align: center; transition: all 0.15s; font-size: 0.58rem;
+        }
+        .preset-card:hover { background: var(--btn-hover); border-color: var(--accent-cyan); transform: translateY(-1px); }
+        .preset-card.active { border-color: var(--accent-cyan); background: #1a2a2a; }
+        .preset-card .preset-icon { font-size: 1.2rem; }
+        .preset-card .preset-name { font-weight: 600; color: var(--text); }
+        .preset-card .preset-eq { font-family: var(--mono); color: var(--text-secondary); font-size: 0.5rem; }
+
+        .input-row { display: flex; gap: 5px; align-items: center; margin-bottom: 3px; }
+        .input-row label { font-size: 0.65rem; color: var(--text-secondary); white-space: nowrap; min-width: 55px; }
+        .input-row input {
+            flex: 1; background: var(--display-bg); border: 1px solid var(--border);
+            border-radius: 4px; padding: 4px 7px; color: var(--text); font-family: var(--mono);
+            font-size: 0.65rem; outline: none;
+        }
+        .input-row input:focus { border-color: var(--accent-cyan); }
+        .input-row input[type="number"] { width: 50px; flex: 0; }
+        .syntax-status { font-size: 0.58rem; margin-top: 1px; min-height: 12px; }
+        .syntax-ok { color: var(--accent-green); }
+        .syntax-err { color: var(--accent-red); }
+
+        .slider-group { margin-bottom: 3px; }
+        .slider-group label { font-size: 0.62rem; color: var(--text-secondary); display: flex; justify-content: space-between; margin-bottom: 1px; }
+        .slider-group input[type="range"] { width: 100%; accent-color: var(--accent-cyan); cursor: pointer; height: 4px; }
+
+        .btn-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; }
+        .btn-sm {
+            padding: 5px 4px; border-radius: 4px; border: 1px solid var(--border);
+            cursor: pointer; font-size: 0.6rem; text-align: center;
+            background: var(--btn-bg); color: var(--text); transition: all 0.15s;
+        }
+        .btn-sm:hover { background: var(--btn-hover); border-color: var(--accent-cyan); }
+
+        .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+        .dash-item { background: var(--display-bg); border: 1px solid var(--border); border-radius: 5px; padding: 5px 6px; text-align: center; }
+        .dash-label { font-size: 0.55rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+        .dash-value { font-family: var(--mono); font-size: 0.72rem; font-weight: 700; color: var(--text); }
+        .dash-cyan { color: var(--accent-cyan); }
+
+        .checkbox-row { display: flex; gap: 8px; align-items: center; font-size: 0.62rem; color: var(--text-secondary); }
+        .checkbox-row input { accent-color: var(--accent-cyan); }
+
+        @media (max-width: 900px) {
+            .main-layout { flex-direction: column; }
+            .control-panel { width: 100%; min-width: unset; max-height: 35vh; }
+            .graph-panel { min-height: 350px; }
+        }
+    </style>
+    <script src="../js/common.js"></script>
+</head>
+<body>
+
+<div class="header">
+    <div>
+        <span class="logo">🎨 3D曲面绘制器</span>
+        <span class="subtitle">拖拽旋转 · 透视投影 · 高度着色</span>
+    </div>
+    <div class="header-links">
+        <button onclick="resetView()">🔄 重置</button>
+        <button onclick="exportImage()">📸 导出</button>
+        <button onclick="copyData()">📋 复制</button>
+        <button onclick="showHelp()">❓ 帮助</button>
+        <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
+    </div>
+</div>
+
+<div class="main-layout">
+    <div class="graph-panel" id="graphContainer">
+        <canvas id="graphCanvas"></canvas>
+        <div class="canvas-overlay overlay-top-left" id="funcOverlay">f(x,y) = sin(r)</div>
+        <div class="canvas-overlay overlay-top-right" id="angleOverlay">俯仰30° 旋转-30°</div>
+        <div class="canvas-overlay overlay-bottom-right" id="coordOverlay">x = —, y = —<br>z = —</div>
+        <div class="hint-bar">🖱️ 左键拖拽旋转 | 滚轮缩放 | 右键平移 | 双击重置</div>
+    </div>
+
+    <div class="control-panel">
+        <div class="section">
+            <div class="section-title">📐 预设函数</div>
+            <div class="preset-grid" id="presetGrid">
+                <div class="preset-card active" data-preset="sombrero"><div class="preset-icon">🎩</div><div class="preset-name">墨西哥帽</div><div class="preset-eq">sin(r)/r</div></div>
+                <div class="preset-card" data-preset="saddle"><div class="preset-icon">🐴</div><div class="preset-name">马鞍面</div><div class="preset-eq">x²−y²</div></div>
+                <div class="preset-card" data-preset="paraboloid"><div class="preset-icon">🥣</div><div class="preset-name">抛物面</div><div class="preset-eq">x²+y²</div></div>
+                <div class="preset-card" data-preset="ripple"><div class="preset-icon">🌊</div><div class="preset-name">波纹</div><div class="preset-eq">sin(x)cos(y)</div></div>
+                <div class="preset-card" data-preset="hyperboloid"><div class="preset-icon">🎪</div><div class="preset-name">双曲面</div><div class="preset-eq">√(1+x²+y²)</div></div>
+                <div class="preset-card" data-preset="custom"><div class="preset-icon">✏️</div><div class="preset-name">自定义</div><div class="preset-eq">用户输入</div></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">✏️ 自定义方程</div>
+            <div class="input-row"><label>f(x,y)=</label><input type="text" id="customEqInput" value="sin(sqrt(x^2+y^2))" spellcheck="false" oninput="onCustomInput()"></div>
+            <div class="syntax-status syntax-ok" id="syntaxStatus">✅ 有效</div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">🎥 视角控制</div>
+            <div class="slider-group">
+                <label>俯仰角 <span id="pitchValue">30°</span></label>
+                <input type="range" id="pitchSlider" min="5" max="85" value="30" step="1" oninput="onAngleSlider()">
+            </div>
+            <div class="slider-group">
+                <label>旋转角 <span id="yawValue">-30°</span></label>
+                <input type="range" id="yawSlider" min="-180" max="180" value="-30" step="1" oninput="onAngleSlider()">
+            </div>
+            <div class="btn-grid-4" style="margin-top:3px;">
+                <button class="btn-sm" onclick="setView(30,-30)">🏔️ 默认</button>
+                <button class="btn-sm" onclick="setView(85,0)">🔝 俯视</button>
+                <button class="btn-sm" onclick="setView(5,-90)">➡️ 侧视</button>
+                <button class="btn-sm" onclick="autoRotate()">🔄 旋转</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">⚡ 显示选项</div>
+            <div class="checkbox-row"><input type="checkbox" id="chkFill" checked onchange="draw()"><label>曲面填充</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="chkWire" checked onchange="draw()"><label>线框网格</label></div>
+            <div class="slider-group">
+                <label>采样密度 <span id="densityValue">60</span></label>
+                <input type="range" id="densitySlider" min="30" max="100" value="60" step="10" oninput="onDensityChange()">
+            </div>
+            <div class="checkbox-row"><input type="checkbox" id="chkAxes" checked onchange="draw()"><label>坐标轴</label></div>
+            <div class="checkbox-row"><input type="checkbox" id="chkGround" checked onchange="draw()"><label>参考平面</label></div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">📏 范围</div>
+            <div class="input-row"><label>x:</label><input type="number" id="inputXMin" value="-5" step="0.5" onchange="onRangeChange()" style="width:50px;"><span style="color:var(--text-secondary);">→</span><input type="number" id="inputXMax" value="5" step="0.5" onchange="onRangeChange()" style="width:50px;"></div>
+            <div class="input-row"><label>y:</label><input type="number" id="inputYMin" value="-5" step="0.5" onchange="onRangeChange()" style="width:50px;"><span style="color:var(--text-secondary);">→</span><input type="number" id="inputYMax" value="5" step="0.5" onchange="onRangeChange()" style="width:50px;"></div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">📊 实时数据</div>
+            <div class="dashboard">
+                <div class="dash-item"><div class="dash-label">探针坐标</div><div class="dash-value dash-cyan" id="dashCoords">x=—, y=—</div></div>
+                <div class="dash-item"><div class="dash-label">z值</div><div class="dash-value" id="dashZ">—</div></div>
+                <div class="dash-item"><div class="dash-label">max</div><div class="dash-value" id="dashMax">—</div></div>
+                <div class="dash-item"><div class="dash-label">min</div><div class="dash-value" id="dashMin">—</div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    // ==================== DOM ====================
+    var canvas = document.getElementById('graphCanvas');
+    var ctx = canvas.getContext('2d');
+    var container = document.getElementById('graphContainer');
+    var funcOverlay = document.getElementById('funcOverlay');
+    var angleOverlay = document.getElementById('angleOverlay');
+    var coordOverlay = document.getElementById('coordOverlay');
+    var syntaxStatus = document.getElementById('syntaxStatus');
+    var customEqInput = document.getElementById('customEqInput');
+    var chkFill = document.getElementById('chkFill');
+    var chkWire = document.getElementById('chkWire');
+    var chkAxes = document.getElementById('chkAxes');
+    var chkGround = document.getElementById('chkGround');
+    var densitySlider = document.getElementById('densitySlider');
+    var pitchSlider = document.getElementById('pitchSlider');
+    var yawSlider = document.getElementById('yawSlider');
+    var inputXMin = document.getElementById('inputXMin');
+    var inputXMax = document.getElementById('inputXMax');
+    var inputYMin = document.getElementById('inputYMin');
+    var inputYMax = document.getElementById('inputYMax');
+
+    // ==================== 主题 ====================
+    var savedTheme = localStorage.getItem('mathvislab_theme');
+    if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+    window.toggleTheme = function() {
+        var next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('mathvislab_theme', next);
+        draw();
+    };
+
+    // ==================== 状态 ====================
+    var currentPreset = 'sombrero';
+    var customExpr = 'sin(sqrt(x^2+y^2))';
+    var binaryFunc = null;
+    var xMin = -5, xMax = 5, yMin = -5, yMax = 5;
+    var globalMaxZ = 1, globalMinZ = -1;
+    var gridDensity = 60;
+
+    // 3D视角参数
+    var angleX = 30 * Math.PI / 180;   // 俯仰角(弧度)
+    var angleZ = -30 * Math.PI / 180;  // 旋转角(弧度)
+    var scale = 1;
+    var centerX = 0, centerY = 0;
+
+    // 拖拽状态
+    var isDragging = false, isPanning = false;
+    var dragStartX = 0, dragStartY = 0;
+    var dragStartAX = 0, dragStartAZ = 0;
+    var panStartCX = 0, panStartCY = 0;
+    var velocityX = 0, velocityZ = 0;
+    var autoRotating = false, autoRotateId = null;
+
+    // 投影缓存
+    var projectedGrid = [];
+
+    // ==================== URL参数 ====================
+    (function() {
+        var params = new URLSearchParams(window.location.search);
+        var passed = params.get('func');
+        if (passed) {
+            customExpr = decodeURIComponent(passed);
+            currentPreset = 'custom';
+            document.querySelectorAll('.preset-card').forEach(function(c) { c.classList.remove('active'); });
+            var cc = document.querySelector('.preset-card[data-preset="custom"]');
+            if (cc) cc.classList.add('active');
+            customEqInput.value = customExpr;
+        }
+    })();
+
+    // ==================== 编译 ====================
+    function updateBinaryFunc() {
+        if (!Common || typeof Common.compileBinaryExpr !== 'function') {
+            syntaxStatus.textContent = '❌ 模块缺失'; syntaxStatus.className = 'syntax-status syntax-err';
+            binaryFunc = null; return;
+        }
+        binaryFunc = Common.compileBinaryExpr(customExpr);
+        if (binaryFunc) {
+            try {
+                var t = binaryFunc(0,0);
+                if (isNaN(t) || !isFinite(t)) throw new Error('NaN');
+                syntaxStatus.textContent = '✅ 有效'; syntaxStatus.className = 'syntax-status syntax-ok';
+            } catch(e) { binaryFunc = null; syntaxStatus.textContent = '❌ 运行时'; syntaxStatus.className = 'syntax-status syntax-err'; }
+        } else { syntaxStatus.textContent = '❌ 语法'; syntaxStatus.className = 'syntax-status syntax-err'; }
+    }
+
+    function findGlobalExtrema() {
+        if (!binaryFunc) return;
+        var maxZ = -Infinity, minZ = Infinity, s = 50;
+        for (var i = 0; i <= s; i++) {
+            for (var j = 0; j <= s; j++) {
+                var mx = xMin + (xMax-xMin)*i/s, my = yMin + (yMax-yMin)*j/s;
+                var z = binaryFunc(mx, my);
+                if (isFinite(z)) { if (z > maxZ) maxZ = z; if (z < minZ) minZ = z; }
+            }
+        }
+        if (maxZ === -Infinity) { maxZ = 1; minZ = -1; }
+        globalMaxZ = maxZ; globalMinZ = minZ;
+        document.getElementById('dashMax').textContent = maxZ.toFixed(3);
+        document.getElementById('dashMin').textContent = minZ.toFixed(3);
+    }
+
+    // ==================== 3D投影 ====================
+    function project(x3, y3, z3) {
+        var cosZ = Math.cos(angleZ), sinZ = Math.sin(angleZ);
+        var xRot = x3 * cosZ - y3 * sinZ;
+        var yRot = x3 * sinZ + y3 * cosZ;
+
+        var cosX = Math.cos(angleX), sinX = Math.sin(angleX);
+        var yTilt = yRot * cosX - z3 * sinX;
+        var zTilt = yRot * sinX + z3 * cosX;
+
+        return {
+            sx: centerX + xRot * scale,
+            sy: centerY - zTilt * scale,
+            depth: yTilt
+        };
+    }
+
+    function getCanvasCenter() {
+        var rect = canvas.getBoundingClientRect();
+        return { cx: rect.width / 2, cy: rect.height * 0.55 };
+    }
+
+    function reprojectAll() {
+        var cc = getCanvasCenter();
+        centerX = cc.cx; centerY = cc.cy;
+        var range = Math.max(xMax - xMin, yMax - yMin);
+        scale = Math.min(cc.cx, cc.cy) / range * 0.9;
+
+        var density = gridDensity;
+        projectedGrid = [];
+        for (var i = 0; i <= density; i++) {
+            var row = [];
+            var yv = yMin + (yMax - yMin) * i / density;
+            for (var j = 0; j <= density; j++) {
+                var xv = xMin + (xMax - xMin) * j / density;
+                var zv = binaryFunc ? binaryFunc(xv, yv) : 0;
+                if (!isFinite(zv)) zv = 0;
+                var p = project(xv, yv, zv);
+                p.x3 = xv; p.y3 = yv; p.z3 = zv;
+                row.push(p);
+            }
+            projectedGrid.push(row);
+        }
+    }
+
+    // ==================== 绘制 ====================
+    function draw() {
+        var rect = canvas.getBoundingClientRect();
+        var W = rect.width, H = rect.height;
+        var dpr = window.devicePixelRatio || 1;
+        if (canvas.width !== W*dpr || canvas.height !== H*dpr) {
+            canvas.width = W*dpr; canvas.height = H*dpr;
+            canvas.style.width = W+'px'; canvas.style.height = H+'px';
+            ctx.setTransform(1,0,0,1,0,0); ctx.scale(dpr,dpr);
+        }
+        var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        ctx.clearRect(0,0,W,H);
+        ctx.fillStyle = isLight ? '#f0f2f5' : '#0d1117';
+        ctx.fillRect(0,0,W,H);
+
+        if (!binaryFunc) return;
+        if (projectedGrid.length === 0) reprojectAll();
+
+        var absMax = Math.max(Math.abs(globalMaxZ), Math.abs(globalMinZ), 0.1);
+
+        // 参考平面
+        if (chkGround.checked) drawGroundPlane(W, H, isLight);
+
+        // 曲面
+        if (chkFill.checked) drawFilledSurface(absMax);
+        if (chkWire.checked) drawWireframe(absMax);
+
+        // 坐标轴
+        if (chkAxes.checked) drawAxes(W, H, isLight);
+
+        updateAngleDisplay();
+    }
+
+    function drawGroundPlane(W, H, isLight) {
+        var cc = getCanvasCenter();
+        var corners = [
+            project(xMin, yMin, 0), project(xMax, yMin, 0),
+            project(xMax, yMax, 0), project(xMin, yMax, 0)
+        ];
+        ctx.beginPath();
+        ctx.moveTo(corners[0].sx, corners[0].sy);
+        for (var i = 1; i < 4; i++) ctx.lineTo(corners[i].sx, corners[i].sy);
+        ctx.closePath();
+        ctx.fillStyle = isLight ? 'rgba(200,210,220,0.15)' : 'rgba(255,255,255,0.03)';
+        ctx.fill();
+        ctx.strokeStyle = isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.1)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 6]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    function drawFilledSurface(absMax) {
+        var rows = projectedGrid.length;
+        if (rows < 2) return;
+        var cols = projectedGrid[0].length;
+        var sortedQuads = [];
+        for (var i = 0; i < rows - 1; i++) {
+            for (var j = 0; j < cols - 1; j++) {
+                var p00 = projectedGrid[i][j], p10 = projectedGrid[i][j+1];
+                var p01 = projectedGrid[i+1][j], p11 = projectedGrid[i+1][j+1];
+                if (!isFinite(p00.z3) || !isFinite(p10.z3) || !isFinite(p01.z3) || !isFinite(p11.z3)) continue;
+                var avgDepth = (p00.depth + p10.depth + p01.depth + p11.depth) / 4;
+                var avgZ = (p00.z3 + p10.z3 + p01.z3 + p11.z3) / 4;
+                sortedQuads.push({
+                    i: i, j: j, depth: avgDepth, avgZ: avgZ,
+                    p00: p00, p10: p10, p01: p01, p11: p11
+                });
+            }
+        }
+        sortedQuads.sort(function(a, b) { return b.depth - a.depth; });
+
+        for (var k = 0; k < sortedQuads.length; k++) {
+            var q = sortedQuads[k];
+            var nz = q.avgZ / absMax;
+            var color = Common.bidirectionalColor(nz);
+            ctx.beginPath();
+            ctx.moveTo(q.p00.sx, q.p00.sy);
+            ctx.lineTo(q.p10.sx, q.p10.sy);
+            ctx.lineTo(q.p11.sx, q.p11.sy);
+            ctx.lineTo(q.p01.sx, q.p01.sy);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(' + color[0] + ',' + color[1] + ',' + color[2] + ',0.25)';
+            ctx.fill();
+        }
+    }
+
+    function drawWireframe(absMax) {
+        var rows = projectedGrid.length;
+        if (rows < 2) return;
+        var cols = projectedGrid[0].length;
+        ctx.lineWidth = 0.7;
+
+        // 先画纵向线(从远到近)
+        for (var i = 0; i < rows; i++) {
+            for (var j = 0; j < cols - 1; j++) {
+                var p0 = projectedGrid[i][j], p1 = projectedGrid[i][j+1];
+                if (!isFinite(p0.z3) || !isFinite(p1.z3)) continue;
+                var nz = (p0.z3 + p1.z3) / 2 / absMax;
+                var color = Common.bidirectionalColor(nz);
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(' + color[0] + ',' + color[1] + ',' + color[2] + ',0.6)';
+                ctx.moveTo(p0.sx, p0.sy); ctx.lineTo(p1.sx, p1.sy);
+                ctx.stroke();
+            }
+        }
+        // 再画横向线
+        for (var j = 0; j < cols; j++) {
+            for (var i = 0; i < rows - 1; i++) {
+                var p0 = projectedGrid[i][j], p1 = projectedGrid[i+1][j];
+                if (!isFinite(p0.z3) || !isFinite(p1.z3)) continue;
+                var nz = (p0.z3 + p1.z3) / 2 / absMax;
+                var color = Common.bidirectionalColor(nz);
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(' + color[0] + ',' + color[1] + ',' + color[2] + ',0.5)';
+                ctx.moveTo(p0.sx, p0.sy); ctx.lineTo(p1.sx, p1.sy);
+                ctx.stroke();
+            }
+        }
+    }
+
+    function drawAxes(W, H, isLight) {
+        var o = project(0, 0, 0);
+        var axisLen = Math.max(xMax-xMin, yMax-yMin) * 0.6;
+        var xEnd = project(axisLen, 0, 0);
+        var yEnd = project(0, axisLen, 0);
+        var zEnd = project(0, 0, axisLen);
+
+        var colors = [
+            { end: xEnd, color: '#e05161', label: 'X' },
+            { end: yEnd, color: '#4caf84', label: 'Y' },
+            { end: zEnd, color: '#4f9fcf', label: 'Z' }
+        ];
+
+        colors.forEach(function(a) {
+            ctx.beginPath();
+            ctx.strokeStyle = a.color;
+            ctx.lineWidth = 2;
+            ctx.moveTo(o.sx, o.sy);
+            ctx.lineTo(a.end.sx, a.end.sy);
+            ctx.stroke();
+            ctx.fillStyle = a.color;
+            ctx.font = 'bold 11px sans-serif';
+            ctx.fillText(a.label, a.end.sx + 5, a.end.sy - 3);
+        });
+
+        // 原点球
+        ctx.beginPath();
+        ctx.fillStyle = '#fff';
+        ctx.arc(o.sx, o.sy, 4, 0, Math.PI*2);
+        ctx.fill();
+    }
+
+    function updateAngleDisplay() {
+        var pitchDeg = Math.round(angleX * 180 / Math.PI);
+        var yawDeg = Math.round(angleZ * 180 / Math.PI);
+        angleOverlay.textContent = '俯仰' + pitchDeg + '° 旋转' + yawDeg + '°';
+        document.getElementById('pitchValue').textContent = pitchDeg + '°';
+        document.getElementById('yawValue').textContent = yawDeg + '°';
+    }
+
+    // ==================== 交互 ====================
+    canvas.addEventListener('pointerdown', function(e) {
+        if (autoRotating) stopAutoRotate();
+        if (e.button === 2 || (e.button === 0 && e.ctrlKey)) {
+            isPanning = true;
+            panStartCX = centerX - e.clientX;
+            panStartCY = centerY - e.clientY;
+            container.style.cursor = 'grabbing';
+            e.preventDefault(); return;
+        }
+        if (e.button === 0) {
+            isDragging = true;
+            dragStartX = e.clientX; dragStartY = e.clientY;
+            dragStartAX = angleX; dragStartAZ = angleZ;
+            velocityX = 0; velocityZ = 0;
+            container.style.cursor = 'grabbing';
+            e.preventDefault();
+        }
+    });
+
+    window.addEventListener('pointermove', function(e) {
+        if (isDragging) {
+            var dx = e.clientX - dragStartX;
+            var dy = e.clientY - dragStartY;
+            angleZ = dragStartAZ - dx * 0.0012;
+            angleX = dragStartAX + dy * 0.0012;
+            angleX = Math.max(-Math.PI/2.2, Math.min(Math.PI/2.2, angleX));
+            updateAngleSliders();
+            reprojectAll(); draw();
+            return;
+        }
+        if (isPanning) {
+            centerX = panStartCX + e.clientX;
+            centerY = panStartCY + e.clientY;
+            reprojectAll(); draw();
+            return;
+        }
+    });
+
+    window.addEventListener('pointerup', function(e) {
+        if (isDragging) {
+            velocityX = (dragStartAX - angleX) * 1.5;
+            velocityZ = (dragStartAZ - angleZ) * 1.5;
+            isDragging = false;
+            container.style.cursor = 'grab';
+            if (Math.abs(velocityX) > 0.001 || Math.abs(velocityZ) > 0.001) {
+                animateInertia();
+            }
+        }
+        if (isPanning) { isPanning = false; container.style.cursor = 'grab'; }
+    });
+
+    function animateInertia() {
+        if (Math.abs(velocityX) < 0.0005 && Math.abs(velocityZ) < 0.0005) return;
+        angleX -= velocityX;
+        angleZ -= velocityZ;
+        angleX = Math.max(-Math.PI/2.2, Math.min(Math.PI/2.2, angleX));
+        velocityX *= 0.90;
+        velocityZ *= 0.90;
+        updateAngleSliders();
+        reprojectAll(); draw();
+        requestAnimationFrame(animateInertia);
+    }
+
+    canvas.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        var factor = e.deltaY < 0 ? 1.06 : 0.94;
+        scale *= factor;
+        scale = Math.max(0.05, Math.min(5, scale));
+        reprojectAll(); draw();
+    }, { passive: false });
+
+    canvas.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+    canvas.addEventListener('dblclick', function() { setView(30, -30); });
+
+    function updateAngleSliders() {
+        pitchSlider.value = Math.round(angleX * 180 / Math.PI);
+        yawSlider.value = Math.round(angleZ * 180 / Math.PI);
+    }
+
+    function onAngleSlider() {
+        angleX = parseInt(pitchSlider.value) * Math.PI / 180;
+        angleZ = parseInt(yawSlider.value) * Math.PI / 180;
+        reprojectAll(); draw();
+    }
+
+    function setView(pitchDeg, yawDeg) {
+        stopAutoRotate();
+        angleX = pitchDeg * Math.PI / 180;
+        angleZ = yawDeg * Math.PI / 180;
+        updateAngleSliders();
+        reprojectAll(); draw();
+    }
+
+    function autoRotate() {
+        if (autoRotating) { stopAutoRotate(); return; }
+        autoRotating = true;
+        function step() {
+            if (!autoRotating) return;
+            angleZ += 0.008;
+            updateAngleSliders();
+            reprojectAll(); draw();
+            autoRotateId = requestAnimationFrame(step);
+        }
+        autoRotateId = requestAnimationFrame(step);
+    }
+
+    function stopAutoRotate() {
+        autoRotating = false;
+        if (autoRotateId) cancelAnimationFrame(autoRotateId);
+    }
+
+    // ==================== 预设 ====================
+    document.getElementById('presetGrid').addEventListener('click', function(e) {
+        var card = e.target.closest('.preset-card');
+        if (!card) return;
+        document.querySelectorAll('.preset-card').forEach(function(c) { c.classList.remove('active'); });
+        card.classList.add('active');
+        currentPreset = card.dataset.preset;
+        switch (currentPreset) {
+            case 'sombrero': customExpr = 'sin(sqrt(x^2+y^2))'; break;
+            case 'saddle': customExpr = 'x^2 - y^2'; break;
+            case 'paraboloid': customExpr = 'x^2 + y^2'; break;
+            case 'ripple': customExpr = 'sin(x)*cos(y)'; break;
+            case 'hyperboloid': customExpr = 'sqrt(1+x^2+y^2)'; break;
+            case 'custom': break;
+        }
+        customEqInput.value = customExpr;
+        funcOverlay.textContent = 'f(x,y) = ' + customExpr.replace(/\^2/g,'²').replace(/sqrt/g,'√').replace(/\*/g,'');
+        updateBinaryFunc(); findGlobalExtrema(); reprojectAll(); draw();
+    });
+
+    function onCustomInput() {
+        customExpr = customEqInput.value;
+        updateBinaryFunc();
+        if (binaryFunc) { findGlobalExtrema(); reprojectAll(); }
+        funcOverlay.textContent = 'f(x,y) = ' + customExpr.replace(/\^2/g,'²').replace(/sqrt/g,'√').replace(/\*/g,'');
+        draw();
+    }
+
+    function onRangeChange() {
+        xMin = parseFloat(inputXMin.value)||-5; xMax = parseFloat(inputXMax.value)||5;
+        yMin = parseFloat(inputYMin.value)||-5; yMax = parseFloat(inputYMax.value)||5;
+        if (xMax<=xMin) xMax=xMin+1; if (yMax<=yMin) yMax=yMin+1;
+        findGlobalExtrema(); reprojectAll(); draw();
+    }
+
+    function onDensityChange() {
+        gridDensity = parseInt(densitySlider.value);
+        document.getElementById('densityValue').textContent = gridDensity;
+        reprojectAll(); draw();
+    }
+
+    function resetView() { setView(30, -30); xMin=-5;xMax=5;yMin=-5;yMax=5; findGlobalExtrema(); reprojectAll(); draw(); }
+
+    window.resetView = resetView;
+    window.onCustomInput = onCustomInput;
+    window.onRangeChange = onRangeChange;
+    window.onDensityChange = onDensityChange;
+    window.onAngleSlider = onAngleSlider;
+    window.setView = setView;
+    window.autoRotate = autoRotate;
+    window.draw = draw;
+
+    // ==================== 导出 ====================
+    function exportImage() {
+        var rect = canvas.getBoundingClientRect();
+        var ec = document.createElement('canvas'), dpr = 2;
+        ec.width = rect.width*dpr; ec.height = (rect.height+22)*dpr;
+        var etc = ec.getContext('2d'); etc.scale(dpr,dpr);
+        etc.drawImage(canvas,0,0,rect.width,rect.height);
+        etc.fillStyle = 'rgba(0,0,0,0.85)'; etc.fillRect(0,rect.height,rect.width,22);
+        etc.fillStyle = '#fff'; etc.font = '9px "JetBrains Mono",monospace';
+        etc.fillText(customExpr+' | '+new Date().toLocaleString(),6,rect.height+15);
+        var a = document.createElement('a'); a.download = 'surface-3d-'+new Date().toISOString().slice(0,10)+'.png';
+        a.href = ec.toDataURL('image/png'); a.click();
+    }
+
+    function copyData() {
+        var t = 'f(x,y)='+customExpr+'\n范围:['+xMin.toFixed(1)+','+xMax.toFixed(1)+']×['+yMin.toFixed(1)+','+yMax.toFixed(1)+']\nmax:'+globalMaxZ.toFixed(3)+' min:'+globalMinZ.toFixed(3)+'\n视角:俯仰'+(angleX*180/Math.PI).toFixed(0)+'° 旋转'+(angleZ*180/Math.PI).toFixed(0)+'°';
+        navigator.clipboard.writeText(t).then(function() {
+            var b = document.querySelectorAll('.header-links button')[2];
+            var o = b.textContent; b.textContent = '✅'; setTimeout(function(){b.textContent=o;},1200);
+        });
+    }
+
+    function showHelp() {
+        alert('🎨 3D曲面绘制器\n\n🖱️ 左键拖拽 = 旋转曲面\n🔍 滚轮 = 缩放\n✋ 右键拖拽 = 平移\n🔄 自动旋转 = 持续展示\n\n变量:x,y 函数:sin,cos,exp,ln,sqrt\n运算符:+ - * / ^ ( )\n常量:pi,e');
+    }
+
+    window.exportImage = exportImage;
+    window.copyData = copyData;
+    window.showHelp = showHelp;
+
+    // ==================== 初始化 ====================
+    window.addEventListener('resize', function() { reprojectAll(); draw(); });
+    if (window.ResizeObserver) new ResizeObserver(function() { reprojectAll(); draw(); }).observe(container);
+
+    function init() {
+        updateBinaryFunc();
+        findGlobalExtrema();
+        updateAngleSliders();
+        funcOverlay.textContent = 'f(x,y) = ' + customExpr.replace(/\^2/g,'²').replace(/sqrt/g,'√').replace(/\*/g,'');
+        gridDensity = parseInt(densitySlider.value);
+        document.getElementById('densityValue').textContent = gridDensity;
+        reprojectAll();
+        draw();
+    }
+    window.addEventListener('load', init);
+})();
+</script>
+</body>
+</html>
